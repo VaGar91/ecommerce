@@ -90,8 +90,35 @@ docker compose down
 The integration test suite uses Testcontainers and therefore requires Docker.
 It starts an isolated PostgreSQL instance and does not use the Compose database.
 
+## Product API
+
+Product CRUD is available below `/api/products`:
+
+- `POST /api/products` creates a product and returns `201 Created`.
+- `GET /api/products/{id}` returns one product.
+- `GET /api/products` returns all products ordered by name and SKU.
+- `PUT /api/products/{id}` replaces a product.
+- `DELETE /api/products/{id}` deletes a product and returns `204 No Content`.
+
+Create and update requests use this shape:
+
+```json
+{
+  "name": "Mechanical Keyboard",
+  "sku": "KEY-001",
+  "description": "Tactile mechanical keyboard",
+  "category": "Accessories",
+  "price": 49.90,
+  "stock": 25,
+  "weightKg": 0.850
+}
+```
+
+SKUs are trimmed, normalized to uppercase, and must be unique. Invalid requests
+use `application/problem+json` responses with field-level validation errors.
+
 ## Current status
 
-The backend bootstrap, module boundaries, and local database infrastructure are
-in place. Business capabilities will be added as independently tested vertical
-slices.
+The backend bootstrap, module boundaries, local database infrastructure, and
+Product CRUD capability are in place. Remaining business capabilities will be
+added as independently tested vertical slices.
