@@ -46,8 +46,52 @@ another module's internal implementation.
 The example CSV file supplied with the challenge was downloaded on
 **2026-08-19**.
 
+## Running locally
+
+Prerequisites:
+
+- JDK 21
+- Docker with Docker Compose v2
+
+Start PostgreSQL:
+
+```shell
+docker compose up -d postgres
+```
+
+Start the backend in another terminal:
+
+```shell
+./mvnw spring-boot:run
+```
+
+The application starts on `http://localhost:8080`. Its health endpoint is
+available at `http://localhost:8080/actuator/health`.
+
+The local defaults can be overridden with `DB_URL`, `DB_USERNAME`, and
+`DB_PASSWORD`. `POSTGRES_PORT` changes the host port exposed by Compose; when it
+is changed, `DB_URL` must point to the same port. The committed credentials are
+for local development only. PostgreSQL is exposed on host port `15432` by default
+to avoid conflicting with an existing installation on the conventional `5432`
+port.
+
+Stop the database without deleting its data:
+
+```shell
+docker compose down
+```
+
+## Running tests
+
+```shell
+./mvnw test
+```
+
+The integration test suite uses Testcontainers and therefore requires Docker.
+It starts an isolated PostgreSQL instance and does not use the Compose database.
+
 ## Current status
 
-The project bootstrap is in place. Architecture decisions, local infrastructure,
-and complete run instructions will be documented as those capabilities are added
-in subsequent commits.
+The backend bootstrap, module boundaries, and local database infrastructure are
+in place. Business capabilities will be added as independently tested vertical
+slices.
