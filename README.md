@@ -46,7 +46,42 @@ another module's internal implementation.
 The example CSV file supplied with the challenge was downloaded on
 **2026-08-19**.
 
-## Running locally
+## Running with Docker
+
+Prerequisite: Docker with Docker Compose v2.
+
+Build the application image and start the complete stack:
+
+```shell
+docker compose up --build --detach --wait
+```
+
+The API is available at `http://localhost:8080`, and its health endpoint is
+`http://localhost:8080/actuator/health`. `APP_PORT` changes the application host
+port, while `POSTGRES_PORT` changes the PostgreSQL host port. The services still
+communicate on their fixed container ports.
+
+Inspect service state and logs:
+
+```shell
+docker compose ps
+docker compose logs app
+```
+
+Stop the stack without deleting PostgreSQL data:
+
+```shell
+docker compose down
+```
+
+Use `docker compose down --volumes` only when the local database data should
+also be deleted.
+
+The application image is built in two stages. Maven and the JDK remain in the
+builder stage; the final image contains only the Java 21 runtime, runs as the
+unprivileged numeric user `10001`, and defines its own actuator health check.
+
+## Running the backend from source
 
 Prerequisites:
 
@@ -75,7 +110,7 @@ for local development only. PostgreSQL is exposed on host port `15432` by defaul
 to avoid conflicting with an existing installation on the conventional `5432`
 port.
 
-Stop the database without deleting its data:
+Stop PostgreSQL without deleting its data:
 
 ```shell
 docker compose down
@@ -195,4 +230,5 @@ the case where payment succeeds but the local transaction cannot commit.
 
 The backend bootstrap, module boundaries, local database infrastructure,
 product CRUD and search, atomic CSV import, and transactional checkout with a
-fake payment provider are in place. Container packaging and the frontend remain.
+fake payment provider are in place. The backend is packaged as a production-style
+container and orchestrated locally with PostgreSQL. The frontend remains.
