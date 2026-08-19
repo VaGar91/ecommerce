@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { ApiError } from "../../../shared/api/http";
-import type { Product, ProductDraft } from "../api/products";
+import type { Product, ProductDraft } from "../../../shared/api/products";
 
 type ProductFormValues = {
   name: string;

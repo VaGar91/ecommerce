@@ -9,7 +9,7 @@ import {
   updateProduct,
   type Product,
   type ProductDraft,
-} from "./api/products";
+} from "../../shared/api/products";
 import { ProductForm } from "./components/ProductForm";
 
 const PAGE_SIZE = 10;

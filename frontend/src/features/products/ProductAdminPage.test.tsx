@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
-import type { Product, ProductPage } from "./api/products";
+import type { Product, ProductPage } from "../../shared/api/products";
 import { ProductAdminPage } from "./ProductAdminPage";
 
 const product: Product = {

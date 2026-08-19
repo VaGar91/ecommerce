@@ -1,4 +1,4 @@
-import { apiRequest } from "../../../shared/api/http";
+import { apiRequest } from "./http";
 
 export type Product = {
   id: string;

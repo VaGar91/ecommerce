@@ -1,5 +1,7 @@
 import { NavLink, Outlet } from "react-router";
 
+import { useCart } from "../../features/cart/useCart";
+
 const navigation = [
   { to: "/catalog", label: "Shop" },
   { to: "/admin/products", label: "Products" },
@@ -8,6 +10,8 @@ const navigation = [
 ];
 
 export function AppShell() {
+  const { totalQuantity } = useCart();
+
   return (
     <div className="app-shell">
       <header className="site-header">
@@ -27,6 +31,11 @@ export function AppShell() {
               to={item.to}
             >
               {item.label}
+              {item.to === "/cart" && totalQuantity > 0 && (
+                <span className="cart-count" aria-label={`${totalQuantity} items in cart`}>
+                  {totalQuantity}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

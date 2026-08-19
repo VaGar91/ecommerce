@@ -256,11 +256,26 @@ reservation, and an orchestrated `PENDING` → `PAID`/`FAILED` workflow backed b
 an outbox. That avoids holding database locks during network calls and handles
 the case where payment succeeds but the local transaction cannot commit.
 
+## Frontend cart state
+
+The storefront keeps the cart in a React context and persists it to browser
+local storage so a refresh does not discard an in-progress order. Stored names,
+prices, and stock are display snapshots only. Checkout sends product IDs and
+quantities to the backend, which reloads the products under database locks and
+revalidates current prices and availability. Client state is therefore useful
+for the shopping experience but never trusted as a purchase authority.
+
+Server-side carts were considered, but would add customer identity, session
+management, and abandoned-cart lifecycle concerns that are outside this
+challenge. Passing the cart through page-level props was also rejected because
+navigation and persistence would become tightly coupled to the route tree.
+
 ## Current status
 
 The backend bootstrap, module boundaries, local database infrastructure,
 product CRUD and search, atomic CSV import, and transactional checkout with a
 fake payment provider are in place. The backend is packaged as a production-style
 container and orchestrated locally with PostgreSQL. The React frontend foundation
-plus the product administration and atomic CSV import UIs are in place;
-storefront search, cart, and checkout screens remain.
+plus the product administration, atomic CSV import, and storefront search UIs
+are in place. The persisted cart foundation is ready; the cart review and
+checkout screens remain.
