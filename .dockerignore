@@ -11,3 +11,6 @@ compose.yaml
 mvnw
 mvnw.cmd
 .mvn
+frontend/node_modules
+frontend/dist
+frontend/coverage

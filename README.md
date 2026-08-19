@@ -12,8 +12,10 @@ checkout flow with a fake payment provider.
 - PostgreSQL and Flyway
 - Maven Wrapper
 - Testcontainers
+- React 19, TypeScript, and Vite
 
-The frontend will be developed separately with React, TypeScript, and Vite.
+The frontend is a separate React application inside this repository, built with
+TypeScript and Vite.
 
 ## Architecture
 
@@ -116,6 +118,32 @@ Stop PostgreSQL without deleting its data:
 
 ```shell
 docker compose down
+```
+
+## Running the frontend from source
+
+Prerequisites:
+
+- Node.js 24.15 or newer
+- The backend running on `http://localhost:8080`
+
+Install dependencies and start Vite:
+
+```shell
+cd frontend
+npm ci
+npm run dev
+```
+
+Open `http://localhost:5173`. Vite proxies `/api` requests to the backend, so
+the browser uses a same-origin API path and no development CORS configuration is
+required.
+
+Run all frontend checks with:
+
+```shell
+cd frontend
+npm run check
 ```
 
 ## Running tests
@@ -233,4 +261,5 @@ the case where payment succeeds but the local transaction cannot commit.
 The backend bootstrap, module boundaries, local database infrastructure,
 product CRUD and search, atomic CSV import, and transactional checkout with a
 fake payment provider are in place. The backend is packaged as a production-style
-container and orchestrated locally with PostgreSQL. The frontend remains.
+container and orchestrated locally with PostgreSQL. The React frontend foundation
+is in place; product administration, storefront, cart, and checkout screens remain.
