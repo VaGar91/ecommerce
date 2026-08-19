@@ -140,7 +140,7 @@ export function CatalogPage() {
                     </div>
                     <div className="product-card-footer">
                       <div className="product-price">
-                        <small>Price</small>
+                        <small>Price (USD)</small>
                         <strong>{formatPrice(product.price)}</strong>
                       </div>
                       <button

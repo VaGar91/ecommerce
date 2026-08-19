@@ -48,7 +48,7 @@ export function CartPage() {
               <dd>{totalQuantity.toLocaleString()}</dd>
             </div>
             <div className="summary-total">
-              <dt>Subtotal</dt>
+              <dt>Subtotal (USD)</dt>
               <dd>{formatPrice(subtotal)}</dd>
             </div>
           </dl>
@@ -109,7 +109,7 @@ function CartLine({ item, setQuantity, removeProduct }: CartLineProps) {
       <div className="cart-line-product">
         <small>{item.sku}</small>
         <h2>{item.name}</h2>
-        <span>{formatPrice(item.price)} each</span>
+        <span>{formatPrice(item.price)} USD each</span>
       </div>
       <div className="cart-line-quantity">
         <span>Quantity</span>

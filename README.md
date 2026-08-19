@@ -277,5 +277,6 @@ product CRUD and search, atomic CSV import, and transactional checkout with a
 fake payment provider are in place. The backend is packaged as a production-style
 container and orchestrated locally with PostgreSQL. The React frontend foundation
 plus the product administration, atomic CSV import, and storefront search UIs
-are in place. The persisted cart review experience is complete; the checkout
-screen remains.
+are in place. The persisted cart review and transactional checkout experiences
+are complete. The remaining delivery work is production frontend container
+integration and final documentation and automation polish.
