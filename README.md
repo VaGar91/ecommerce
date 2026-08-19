@@ -58,17 +58,23 @@ Build the application image and start the complete stack:
 docker compose up --build --detach --wait
 ```
 
-The API is available at `http://localhost:8080`, and its health endpoint is
-`http://localhost:8080/actuator/health`. `APP_PORT` changes the application host
-port, while `POSTGRES_PORT` changes the PostgreSQL host port. The services still
-communicate on their fixed container ports. PostgreSQL is bound to `127.0.0.1`
-and is therefore reachable from the local machine but not published on external
-network interfaces.
+Open the application at `http://localhost:8080`. The frontend health endpoint is
+`http://localhost:8080/healthz`, and the proxied backend health endpoint is
+`http://localhost:8080/api/actuator/health`. `APP_PORT` changes the application
+host port, while `POSTGRES_PORT` changes the PostgreSQL host port. The services
+still communicate on their fixed container ports.
+
+Only the frontend reverse proxy is published as the application entry point.
+The Spring Boot service remains private to the Compose network, and the browser
+reaches it through same-origin `/api` requests. Both the frontend and PostgreSQL
+host ports are bound to `127.0.0.1`, so the local development stack is not
+published on external network interfaces.
 
 Inspect service state and logs:
 
 ```shell
 docker compose ps
+docker compose logs frontend
 docker compose logs app
 ```
 
@@ -81,9 +87,13 @@ docker compose down
 Use `docker compose down --volumes` only when the local database data should
 also be deleted.
 
-The application image is built in two stages. Maven and the JDK remain in the
-builder stage; the final image contains only the Java 21 runtime, runs as the
-unprivileged numeric user `10001`, and defines its own actuator health check.
+Both application images are built in two stages. Maven and the JDK remain in the
+backend builder stage; its final image contains only the Java 21 runtime, runs
+as the unprivileged numeric user `10001`, and defines its own actuator health
+check. Node and frontend build dependencies remain in the frontend builder
+stage; its final image contains only the compiled static assets and an
+unprivileged NGINX reverse proxy. NGINX provides client-side route fallback,
+security headers, and the single `/api` gateway to Spring Boot.
 
 ## Running the backend from source
 
@@ -274,9 +284,8 @@ navigation and persistence would become tightly coupled to the route tree.
 
 The backend bootstrap, module boundaries, local database infrastructure,
 product CRUD and search, atomic CSV import, and transactional checkout with a
-fake payment provider are in place. The backend is packaged as a production-style
-container and orchestrated locally with PostgreSQL. The React frontend foundation
-plus the product administration, atomic CSV import, and storefront search UIs
-are in place. The persisted cart review and transactional checkout experiences
-are complete. The remaining delivery work is production frontend container
-integration and final documentation and automation polish.
+fake payment provider are complete. The React UI includes product administration,
+CSV import, storefront search, a persisted cart, and transactional checkout.
+The complete frontend, backend, and PostgreSQL stack is containerized behind a
+single local entry point. The remaining delivery work is final documentation,
+automation, and end-to-end polish.
