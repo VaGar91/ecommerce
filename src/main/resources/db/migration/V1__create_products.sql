@@ -1,0 +1,20 @@
+CREATE TABLE products (
+    id UUID PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    sku VARCHAR(64) NOT NULL,
+    description VARCHAR(2000) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    price NUMERIC(12, 2) NOT NULL,
+    stock INTEGER NOT NULL,
+    weight_kg NUMERIC(10, 3) NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT uk_products_sku UNIQUE (sku),
+    CONSTRAINT ck_products_name_not_blank CHECK (btrim(name) <> ''),
+    CONSTRAINT ck_products_sku_not_blank CHECK (btrim(sku) <> ''),
+    CONSTRAINT ck_products_sku_normalized CHECK (sku = upper(sku)),
+    CONSTRAINT ck_products_description_not_blank CHECK (btrim(description) <> ''),
+    CONSTRAINT ck_products_category_not_blank CHECK (btrim(category) <> ''),
+    CONSTRAINT ck_products_price_non_negative CHECK (price >= 0),
+    CONSTRAINT ck_products_stock_non_negative CHECK (stock >= 0),
+    CONSTRAINT ck_products_weight_positive CHECK (weight_kg > 0)
+);

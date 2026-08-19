@@ -1,10 +1,8 @@
 package com.gila.ecommerce.catalog;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
-public record ProductSnapshot(
-		UUID id,
+public record ProductDraft(
 		String name,
 		String sku,
 		String description,
