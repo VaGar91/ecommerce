@@ -262,4 +262,5 @@ The backend bootstrap, module boundaries, local database infrastructure,
 product CRUD and search, atomic CSV import, and transactional checkout with a
 fake payment provider are in place. The backend is packaged as a production-style
 container and orchestrated locally with PostgreSQL. The React frontend foundation
-is in place; product administration, storefront, cart, and checkout screens remain.
+and product administration UI are in place; storefront search, CSV import, cart,
+and checkout screens remain.
