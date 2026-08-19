@@ -127,8 +127,36 @@ Product search accepts these optional query parameters:
 - `size` controls the page size, defaults to `20`, and must be between `1` and
   `100`.
 
+## Product CSV import
+
+Upload a CSV as the `file` part of a multipart request:
+
+```shell
+curl --fail-with-body \
+  --form "file=@products.csv;type=text/csv" \
+  http://localhost:8080/api/product-imports
+```
+
+The file must be UTF-8, no larger than 5 MB, and contain at most 10,000 product
+rows. Its header must contain exactly these columns; their order may vary:
+
+```text
+name,sku,description,category,price,stock,weight_kg
+```
+
+Completely blank lines are ignored. Every nonblank row is validated before any
+database write. If a row is invalid or a SKU appears twice in the file, the API
+returns `422 Unprocessable Content` with row and field errors, and the entire
+import is rejected. A valid file is committed atomically and upserts products by
+normalized SKU, making repeated imports idempotent. The response reports total,
+created, and updated row counts.
+
+The supplied example CSV intentionally exercises validation cases, including
+nonnumeric prices, negative stock, missing required fields, zero weight, and
+duplicate SKUs.
+
 ## Current status
 
-The backend bootstrap, module boundaries, local database infrastructure, and
-Product CRUD capability are in place. Remaining business capabilities will be
-added as independently tested vertical slices.
+The backend bootstrap, module boundaries, local database infrastructure,
+product CRUD and search, and atomic CSV import are in place. Checkout and fake
+payment remain and will be added as independently tested vertical slices.
