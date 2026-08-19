@@ -1,6 +1,7 @@
 package com.gila.ecommerce.catalog.internal.web;
 
 import com.gila.ecommerce.catalog.internal.domain.DuplicateSkuException;
+import com.gila.ecommerce.catalog.internal.domain.InsufficientStockException;
 import com.gila.ecommerce.catalog.internal.domain.ProductNotFoundException;
 
 import org.springframework.http.HttpStatus;
@@ -22,6 +23,13 @@ class CatalogExceptionHandler {
 	ProblemDetail handleDuplicateSku(DuplicateSkuException exception) {
 		var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
 		problem.setTitle("SKU already exists");
+		return problem;
+	}
+
+	@ExceptionHandler(InsufficientStockException.class)
+	ProblemDetail handleInsufficientStock(InsufficientStockException exception) {
+		var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+		problem.setTitle("Insufficient stock");
 		return problem;
 	}
 

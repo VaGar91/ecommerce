@@ -15,6 +15,8 @@ public interface CatalogOperations {
 
 	List<ProductUpsertResult> upsertAll(List<ProductDraft> products);
 
+	List<StockReservation> reserveStock(List<StockRequest> requests);
+
 	void delete(UUID productId);
 
 }

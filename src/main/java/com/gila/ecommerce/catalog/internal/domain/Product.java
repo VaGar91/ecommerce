@@ -61,6 +61,16 @@ public class Product {
 		apply(draft);
 	}
 
+	public void reserveStock(int quantity) {
+		if (quantity <= 0) {
+			throw new IllegalArgumentException("quantity must be greater than zero");
+		}
+		if (stock < quantity) {
+			throw new InsufficientStockException(id, quantity, stock);
+		}
+		stock -= quantity;
+	}
+
 	private void apply(ProductDraft draft) {
 		Objects.requireNonNull(draft, "product must not be null");
 		this.name = requiredText(draft.name(), "name", 200);

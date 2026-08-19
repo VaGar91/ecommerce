@@ -1,6 +1,11 @@
 package com.gila.ecommerce.catalog.internal.application;
 
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.UUID;
 
 import com.gila.ecommerce.catalog.CatalogOperations;
@@ -9,6 +14,8 @@ import com.gila.ecommerce.catalog.ProductPage;
 import com.gila.ecommerce.catalog.ProductSearchQuery;
 import com.gila.ecommerce.catalog.ProductSnapshot;
 import com.gila.ecommerce.catalog.ProductUpsertResult;
+import com.gila.ecommerce.catalog.StockRequest;
+import com.gila.ecommerce.catalog.StockReservation;
 import com.gila.ecommerce.catalog.internal.domain.DuplicateSkuException;
 import com.gila.ecommerce.catalog.internal.domain.Product;
 import com.gila.ecommerce.catalog.internal.domain.ProductNotFoundException;
@@ -74,6 +81,25 @@ public class CatalogService implements CatalogOperations {
 
 	@Override
 	@Transactional
+	public List<StockReservation> reserveStock(List<StockRequest> requests) {
+		if (requests == null || requests.isEmpty()) {
+			throw new IllegalArgumentException("at least one stock request is required");
+		}
+
+		var productIds = requests.stream().map(StockRequest::productId).toList();
+		if (new HashSet<>(productIds).size() != productIds.size()) {
+			throw new IllegalArgumentException("each product may only appear once");
+		}
+
+		var sortedIds = productIds.stream().sorted(Comparator.naturalOrder()).toList();
+		var lockedProducts = products.findAllByIdForUpdate(sortedIds).stream()
+				.collect(Collectors.toMap(Product::id, Function.identity()));
+
+		return requests.stream().map(request -> reserve(request, lockedProducts)).toList();
+	}
+
+	@Override
+	@Transactional
 	public void delete(UUID productId) {
 		products.delete(findProduct(productId));
 	}
@@ -93,6 +119,22 @@ public class CatalogService implements CatalogOperations {
 		}
 
 		return new ProductUpsertResult(snapshot(products.save(Product.create(draft))), true);
+	}
+
+	private static StockReservation reserve(StockRequest request, Map<UUID, Product> products) {
+		var product = products.get(request.productId());
+		if (product == null) {
+			throw new ProductNotFoundException(request.productId());
+		}
+
+		product.reserveStock(request.quantity());
+		return new StockReservation(
+				product.id(),
+				product.name(),
+				product.sku(),
+				product.price(),
+				request.quantity()
+		);
 	}
 
 	private static ProductSnapshot snapshot(Product product) {

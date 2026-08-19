@@ -16,7 +16,9 @@ import java.util.UUID;
 
 import com.gila.ecommerce.catalog.ProductDraft;
 import com.gila.ecommerce.catalog.ProductSearchQuery;
+import com.gila.ecommerce.catalog.StockRequest;
 import com.gila.ecommerce.catalog.internal.domain.DuplicateSkuException;
+import com.gila.ecommerce.catalog.internal.domain.InsufficientStockException;
 import com.gila.ecommerce.catalog.internal.domain.Product;
 import com.gila.ecommerce.catalog.internal.domain.ProductNotFoundException;
 import com.gila.ecommerce.catalog.internal.domain.ProductRepository;
@@ -95,6 +97,30 @@ class CatalogServiceTest {
 		assertEquals(2, catalog.search(new ProductSearchQuery("", "", 0, 20)).totalElements());
 	}
 
+	@Test
+	void reservesStockAndReturnsAStableProductSnapshot() {
+		var created = catalog.create(product("Keyboard", "KEY-001"));
+
+		var reservation = catalog.reserveStock(List.of(new StockRequest(created.id(), 3))).getFirst();
+
+		assertEquals(created.id(), reservation.productId());
+		assertEquals("Keyboard", reservation.productName());
+		assertEquals(new BigDecimal("49.90"), reservation.unitPrice());
+		assertEquals(3, reservation.quantity());
+		assertEquals(22, catalog.get(created.id()).stock());
+	}
+
+	@Test
+	void rejectsInsufficientStockWithoutMakingItNegative() {
+		var created = catalog.create(product("Keyboard", "KEY-001"));
+
+		assertThrows(
+				InsufficientStockException.class,
+				() -> catalog.reserveStock(List.of(new StockRequest(created.id(), 26)))
+		);
+		assertEquals(25, catalog.get(created.id()).stock());
+	}
+
 	private static ProductDraft product(String name, String sku) {
 		return new ProductDraft(
 				name,
@@ -125,6 +151,11 @@ class CatalogServiceTest {
 		@Override
 		public Optional<Product> findBySku(String sku) {
 			return products.values().stream().filter(product -> product.sku().equals(sku)).findFirst();
+		}
+
+		@Override
+		public List<Product> findAllByIdForUpdate(List<UUID> productIds) {
+			return productIds.stream().map(products::get).filter(java.util.Objects::nonNull).toList();
 		}
 
 		@Override

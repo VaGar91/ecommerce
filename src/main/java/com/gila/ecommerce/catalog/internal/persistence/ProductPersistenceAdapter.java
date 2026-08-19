@@ -1,6 +1,7 @@
 package com.gila.ecommerce.catalog.internal.persistence;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,6 +46,11 @@ class ProductPersistenceAdapter implements ProductRepository {
 	@Override
 	public Optional<Product> findBySku(String sku) {
 		return products.findBySku(sku);
+	}
+
+	@Override
+	public List<Product> findAllByIdForUpdate(List<UUID> productIds) {
+		return products.findAllByIdForUpdate(productIds);
 	}
 
 	@Override
