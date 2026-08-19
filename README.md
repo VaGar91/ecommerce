@@ -59,7 +59,9 @@ docker compose up --build --detach --wait
 The API is available at `http://localhost:8080`, and its health endpoint is
 `http://localhost:8080/actuator/health`. `APP_PORT` changes the application host
 port, while `POSTGRES_PORT` changes the PostgreSQL host port. The services still
-communicate on their fixed container ports.
+communicate on their fixed container ports. PostgreSQL is bound to `127.0.0.1`
+and is therefore reachable from the local machine but not published on external
+network interfaces.
 
 Inspect service state and logs:
 
@@ -108,7 +110,7 @@ The local defaults can be overridden with `DB_URL`, `DB_USERNAME`, and
 is changed, `DB_URL` must point to the same port. The committed credentials are
 for local development only. PostgreSQL is exposed on host port `15432` by default
 to avoid conflicting with an existing installation on the conventional `5432`
-port.
+port, and is bound to the loopback interface only.
 
 Stop PostgreSQL without deleting its data:
 
