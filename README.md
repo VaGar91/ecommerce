@@ -155,8 +155,44 @@ The supplied example CSV intentionally exercises validation cases, including
 nonnumeric prices, negative stock, missing required fields, zero weight, and
 duplicate SKUs.
 
+## Purchase API
+
+Create and pay for an order with `POST /api/orders`:
+
+```json
+{
+  "items": [
+    {
+      "productId": "2e7fbff8-cdf6-4f9f-aee8-997434940848",
+      "quantity": 2
+    }
+  ],
+  "paymentToken": "tok_approved"
+}
+```
+
+The fake payment gateway approves any nonblank token except `tok_declined`,
+which deterministically simulates a provider decline. A successful purchase
+returns `201 Created` with a `Location` header and an immutable order snapshot.
+The order can subsequently be read with `GET /api/orders/{orderId}`.
+
+Checkout locks all requested products in a stable order, validates inventory,
+decrements stock, charges the fake provider, and persists the paid order in one
+database transaction. A missing product returns `404`, insufficient stock
+returns `409`, and a fake payment decline returns `402`; each failure rolls back
+all inventory changes. Order lines retain product name, SKU, and unit price as
+they were at purchase time so later catalog changes do not rewrite order
+history.
+
+Keeping checkout in one transaction is appropriate for this challenge because
+the payment provider is an in-process fake with no independent side effects. A
+real remote provider would instead use an idempotency key, an expiring inventory
+reservation, and an orchestrated `PENDING` → `PAID`/`FAILED` workflow backed by
+an outbox. That avoids holding database locks during network calls and handles
+the case where payment succeeds but the local transaction cannot commit.
+
 ## Current status
 
 The backend bootstrap, module boundaries, local database infrastructure,
-product CRUD and search, and atomic CSV import are in place. Checkout and fake
-payment remain and will be added as independently tested vertical slices.
+product CRUD and search, atomic CSV import, and transactional checkout with a
+fake payment provider are in place. Container packaging and the frontend remain.

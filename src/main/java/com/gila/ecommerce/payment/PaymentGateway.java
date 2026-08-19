@@ -1,4 +1,7 @@
 package com.gila.ecommerce.payment;
 
-public class PaymentGateway {
+public interface PaymentGateway {
+
+	PaymentResult charge(PaymentRequest request);
+
 }
