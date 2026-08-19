@@ -11,6 +11,8 @@ public interface ProductRepository {
 
 	Optional<Product> findById(UUID productId);
 
+	Optional<Product> findBySku(String sku);
+
 	ProductSearchResult search(ProductSearchQuery query);
 
 	boolean existsBySku(String sku);

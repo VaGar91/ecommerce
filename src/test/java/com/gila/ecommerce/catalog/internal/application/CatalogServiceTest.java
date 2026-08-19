@@ -1,7 +1,9 @@
 package com.gila.ecommerce.catalog.internal.application;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -78,6 +80,21 @@ class CatalogServiceTest {
 		assertThrows(ProductNotFoundException.class, () -> catalog.get(created.id()));
 	}
 
+	@Test
+	void upsertsProductsByNormalizedSku() {
+		catalog.create(product("Keyboard", "KEY-001"));
+
+		var results = catalog.upsertAll(List.of(
+				product("Updated Keyboard", "key-001"),
+				product("Mouse", "MOU-002")
+		));
+
+		assertFalse(results.get(0).created());
+		assertEquals("Updated Keyboard", results.get(0).product().name());
+		assertTrue(results.get(1).created());
+		assertEquals(2, catalog.search(new ProductSearchQuery("", "", 0, 20)).totalElements());
+	}
+
 	private static ProductDraft product(String name, String sku) {
 		return new ProductDraft(
 				name,
@@ -103,6 +120,11 @@ class CatalogServiceTest {
 		@Override
 		public Optional<Product> findById(UUID productId) {
 			return Optional.ofNullable(products.get(productId));
+		}
+
+		@Override
+		public Optional<Product> findBySku(String sku) {
+			return products.values().stream().filter(product -> product.sku().equals(sku)).findFirst();
 		}
 
 		@Override

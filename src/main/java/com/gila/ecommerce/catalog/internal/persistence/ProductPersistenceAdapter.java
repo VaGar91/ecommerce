@@ -43,6 +43,11 @@ class ProductPersistenceAdapter implements ProductRepository {
 	}
 
 	@Override
+	public Optional<Product> findBySku(String sku) {
+		return products.findBySku(sku);
+	}
+
+	@Override
 	public ProductSearchResult search(ProductSearchQuery query) {
 		var sort = Sort.by(Sort.Order.asc("name"), Sort.Order.asc("sku"));
 		var page = products.findAll(searchSpecification(query), PageRequest.of(query.page(), query.size(), sort));

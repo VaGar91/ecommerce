@@ -1,5 +1,6 @@
 package com.gila.ecommerce.catalog.internal.application;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.gila.ecommerce.catalog.CatalogOperations;
@@ -7,6 +8,7 @@ import com.gila.ecommerce.catalog.ProductDraft;
 import com.gila.ecommerce.catalog.ProductPage;
 import com.gila.ecommerce.catalog.ProductSearchQuery;
 import com.gila.ecommerce.catalog.ProductSnapshot;
+import com.gila.ecommerce.catalog.ProductUpsertResult;
 import com.gila.ecommerce.catalog.internal.domain.DuplicateSkuException;
 import com.gila.ecommerce.catalog.internal.domain.Product;
 import com.gila.ecommerce.catalog.internal.domain.ProductNotFoundException;
@@ -66,12 +68,31 @@ public class CatalogService implements CatalogOperations {
 
 	@Override
 	@Transactional
+	public List<ProductUpsertResult> upsertAll(List<ProductDraft> drafts) {
+		return drafts.stream().map(this::upsert).toList();
+	}
+
+	@Override
+	@Transactional
 	public void delete(UUID productId) {
 		products.delete(findProduct(productId));
 	}
 
 	private Product findProduct(UUID productId) {
 		return products.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
+	}
+
+	private ProductUpsertResult upsert(ProductDraft draft) {
+		var sku = Product.normalizeSku(draft.sku());
+		var existing = products.findBySku(sku);
+
+		if (existing.isPresent()) {
+			var product = existing.orElseThrow();
+			product.update(draft);
+			return new ProductUpsertResult(snapshot(products.save(product)), false);
+		}
+
+		return new ProductUpsertResult(snapshot(products.save(Product.create(draft))), true);
 	}
 
 	private static ProductSnapshot snapshot(Product product) {
