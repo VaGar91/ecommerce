@@ -96,7 +96,8 @@ Product CRUD is available below `/api/products`:
 
 - `POST /api/products` creates a product and returns `201 Created`.
 - `GET /api/products/{id}` returns one product.
-- `GET /api/products` returns all products ordered by name and SKU.
+- `GET /api/products` searches products and returns a page ordered by name and
+  SKU.
 - `PUT /api/products/{id}` replaces a product.
 - `DELETE /api/products/{id}` deletes a product and returns `204 No Content`.
 
@@ -116,6 +117,15 @@ Create and update requests use this shape:
 
 SKUs are trimmed, normalized to uppercase, and must be unique. Invalid requests
 use `application/problem+json` responses with field-level validation errors.
+
+Product search accepts these optional query parameters:
+
+- `query` performs a case-insensitive contains search across name, SKU,
+  description, and category.
+- `category` applies a case-insensitive exact category filter.
+- `page` selects a zero-based page and defaults to `0`.
+- `size` controls the page size, defaults to `20`, and must be between `1` and
+  `100`.
 
 ## Current status
 

@@ -8,6 +8,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 @RestControllerAdvice
 class ApiExceptionHandler {
@@ -27,6 +28,13 @@ class ApiExceptionHandler {
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	ProblemDetail handleUnreadableMessage() {
 		var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "The request body is missing or malformed");
+		problem.setTitle("Invalid request");
+		return problem;
+	}
+
+	@ExceptionHandler(HandlerMethodValidationException.class)
+	ProblemDetail handleInvalidParameters() {
+		var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "One or more request parameters are invalid");
 		problem.setTitle("Invalid request");
 		return problem;
 	}

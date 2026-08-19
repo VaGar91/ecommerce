@@ -25,4 +25,11 @@ class CatalogExceptionHandler {
 		return problem;
 	}
 
+	@ExceptionHandler(IllegalArgumentException.class)
+	ProblemDetail handleInvalidProduct(IllegalArgumentException exception) {
+		var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+		problem.setTitle("Invalid request");
+		return problem;
+	}
+
 }

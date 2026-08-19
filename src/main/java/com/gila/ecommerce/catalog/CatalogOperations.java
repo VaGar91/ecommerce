@@ -1,6 +1,5 @@
 package com.gila.ecommerce.catalog;
 
-import java.util.List;
 import java.util.UUID;
 
 public interface CatalogOperations {
@@ -11,7 +10,7 @@ public interface CatalogOperations {
 
 	ProductSnapshot get(UUID productId);
 
-	List<ProductSnapshot> findAll();
+	ProductPage search(ProductSearchQuery query);
 
 	void delete(UUID productId);
 

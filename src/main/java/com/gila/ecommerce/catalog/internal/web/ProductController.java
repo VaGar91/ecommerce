@@ -1,12 +1,16 @@
 package com.gila.ecommerce.catalog.internal.web;
 
-import java.util.List;
 import java.util.UUID;
 
 import com.gila.ecommerce.catalog.CatalogOperations;
+import com.gila.ecommerce.catalog.ProductPage;
+import com.gila.ecommerce.catalog.ProductSearchQuery;
 import com.gila.ecommerce.catalog.ProductSnapshot;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -16,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -45,8 +50,13 @@ class ProductController {
 	}
 
 	@GetMapping
-	List<ProductSnapshot> findAll() {
-		return catalog.findAll();
+	ProductPage search(
+			@RequestParam(defaultValue = "") @Size(max = 200) String query,
+			@RequestParam(defaultValue = "") @Size(max = 100) String category,
+			@RequestParam(defaultValue = "0") @Min(0) int page,
+			@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
+	) {
+		return catalog.search(new ProductSearchQuery(query, category, page, size));
 	}
 
 	@PutMapping("/{productId}")

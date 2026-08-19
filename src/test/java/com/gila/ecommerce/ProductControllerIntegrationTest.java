@@ -89,8 +89,9 @@ class ProductControllerIntegrationTest {
 
 		mockMvc.perform(get("/api/products"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(1))
-				.andExpect(jsonPath("$[0].sku").value("KEY-002"));
+				.andExpect(jsonPath("$.content.length()").value(1))
+				.andExpect(jsonPath("$.content[0].sku").value("KEY-002"))
+				.andExpect(jsonPath("$.totalElements").value(1));
 
 		mockMvc.perform(delete(productPath))
 				.andExpect(status().isNoContent())
@@ -139,6 +140,73 @@ class ProductControllerIntegrationTest {
 				.andExpect(jsonPath("$.errors.price").exists())
 				.andExpect(jsonPath("$.errors.stock").exists())
 				.andExpect(jsonPath("$.errors.weightKg").exists());
+	}
+
+	@Test
+	void searchesFiltersAndPaginatesProducts() throws Exception {
+		createProduct("Alpha Keyboard", "KEY-100", "Mechanical keyboard", "Accessories");
+		createProduct("Beta Monitor", "MON-200", "4K display", "Displays");
+		createProduct("Gamma Keyboard", "KEY-300", "Compact mechanical keyboard", "Accessories");
+		createProduct("100% Cotton Cable", "CAB-400", "Braided charging cable", "Accessories");
+
+		mockMvc.perform(get("/api/products")
+					.param("query", "mechanical")
+					.param("category", "accessories")
+					.param("page", "0")
+					.param("size", "1"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content.length()").value(1))
+				.andExpect(jsonPath("$.content[0].name").value("Alpha Keyboard"))
+				.andExpect(jsonPath("$.page").value(0))
+				.andExpect(jsonPath("$.size").value(1))
+				.andExpect(jsonPath("$.totalElements").value(2))
+				.andExpect(jsonPath("$.totalPages").value(2));
+
+		mockMvc.perform(get("/api/products")
+					.param("query", "mechanical")
+					.param("category", "ACCESSORIES")
+					.param("page", "1")
+					.param("size", "1"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content[0].name").value("Gamma Keyboard"));
+
+		mockMvc.perform(get("/api/products")
+					.param("query", "MON-200"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content.length()").value(1))
+				.andExpect(jsonPath("$.content[0].name").value("Beta Monitor"));
+
+		mockMvc.perform(get("/api/products").param("query", "%"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.content[0].name").value("100% Cotton Cable"));
+	}
+
+	@Test
+	void rejectsInvalidPagination() throws Exception {
+		mockMvc.perform(get("/api/products").param("page", "-1").param("size", "101"))
+				.andExpect(status().isBadRequest())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+				.andExpect(jsonPath("$.title").value("Invalid request"));
+	}
+
+	private void createProduct(String name, String sku, String description, String category) throws Exception {
+		var body = """
+				{
+				  "name": "%s",
+				  "sku": "%s",
+				  "description": "%s",
+				  "category": "%s",
+				  "price": 49.90,
+				  "stock": 25,
+				  "weightKg": 0.850
+				}
+				""".formatted(name, sku, description, category);
+
+		mockMvc.perform(post("/api/products")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(body))
+				.andExpect(status().isCreated());
 	}
 
 }

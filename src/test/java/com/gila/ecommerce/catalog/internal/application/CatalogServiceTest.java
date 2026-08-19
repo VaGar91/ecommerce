@@ -13,10 +13,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.gila.ecommerce.catalog.ProductDraft;
+import com.gila.ecommerce.catalog.ProductSearchQuery;
 import com.gila.ecommerce.catalog.internal.domain.DuplicateSkuException;
 import com.gila.ecommerce.catalog.internal.domain.Product;
 import com.gila.ecommerce.catalog.internal.domain.ProductNotFoundException;
 import com.gila.ecommerce.catalog.internal.domain.ProductRepository;
+import com.gila.ecommerce.catalog.internal.domain.ProductSearchResult;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,7 +66,7 @@ class CatalogServiceTest {
 
 		assertEquals("Ergonomic Keyboard", updated.name());
 		assertEquals("KEY-002", updated.sku());
-		assertEquals(List.of(updated), catalog.findAll());
+		assertEquals(List.of(updated), catalog.search(new ProductSearchQuery("", "", 0, 20)).content());
 	}
 
 	@Test
@@ -104,10 +106,15 @@ class CatalogServiceTest {
 		}
 
 		@Override
-		public List<Product> findAll() {
-			var result = new ArrayList<>(products.values());
-			result.sort(Comparator.comparing(Product::name).thenComparing(Product::sku));
-			return result;
+		public ProductSearchResult search(ProductSearchQuery query) {
+			var matches = new ArrayList<>(products.values());
+			matches.sort(Comparator.comparing(Product::name).thenComparing(Product::sku));
+
+			var fromIndex = Math.min(query.page() * query.size(), matches.size());
+			var toIndex = Math.min(fromIndex + query.size(), matches.size());
+			var totalPages = (int) Math.ceil((double) matches.size() / query.size());
+
+			return new ProductSearchResult(matches.subList(fromIndex, toIndex), matches.size(), totalPages);
 		}
 
 		@Override

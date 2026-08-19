@@ -1,10 +1,11 @@
 package com.gila.ecommerce.catalog.internal.application;
 
-import java.util.List;
 import java.util.UUID;
 
 import com.gila.ecommerce.catalog.CatalogOperations;
 import com.gila.ecommerce.catalog.ProductDraft;
+import com.gila.ecommerce.catalog.ProductPage;
+import com.gila.ecommerce.catalog.ProductSearchQuery;
 import com.gila.ecommerce.catalog.ProductSnapshot;
 import com.gila.ecommerce.catalog.internal.domain.DuplicateSkuException;
 import com.gila.ecommerce.catalog.internal.domain.Product;
@@ -56,8 +57,11 @@ public class CatalogService implements CatalogOperations {
 
 	@Override
 	@Transactional(readOnly = true)
-	public List<ProductSnapshot> findAll() {
-		return products.findAll().stream().map(CatalogService::snapshot).toList();
+	public ProductPage search(ProductSearchQuery query) {
+		var result = products.search(query);
+		var content = result.content().stream().map(CatalogService::snapshot).toList();
+
+		return new ProductPage(content, query.page(), query.size(), result.totalElements(), result.totalPages());
 	}
 
 	@Override
