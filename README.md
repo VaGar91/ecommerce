@@ -165,16 +165,6 @@ requiring custom infrastructure code. Resource-oriented JSON endpoints map
 directly to product CRUD, search, import, and order workflows, while Spring
 `ProblemDetail` gives errors a consistent `application/problem+json` contract.
 
-Quarkus and Micronaut were viable Java alternatives with attractive startup and
-memory characteristics, but Spring Boot's ecosystem and Spring Modulith support
-fit the architecture and reviewer familiarity better. A Node.js backend would
-reduce the number of languages but would discard the chosen Java direction.
-GraphQL was not selected because the UI does not need client-defined joins or
-multiple graph-shaped projections; it would add schema, resolver, caching, and
-authorization complexity to straightforward resource operations. gRPC is a
-strong internal service protocol but is not a natural browser-facing contract
-for this application.
-
 ### Modular monolith instead of microservices
 
 A modular monolith preserves explicit catalog, import, ordering, and payment
@@ -226,12 +216,7 @@ workflows, while TypeScript keeps API models and component state explicit. The
 frontend lives in the same repository so one commit and one Compose command
 describe a compatible full-stack version.
 
-Server-rendered Thymeleaf would reduce the number of build tools, but it would
-couple page rendering to the backend and make the cart and interactive search
-experience less isolated. ClojureScript was permitted and offers functional
-programming strengths, but it would add a less conventional evaluation and
-build surface without a domain requirement that benefits from it. Separate
-frontend and backend repositories were rejected because coordinated review,
+Separate frontend and backend repositories were rejected because coordinated review,
 versioning, and local startup would become more complex for this challenge.
 
 ### Free-form categories instead of an enum
