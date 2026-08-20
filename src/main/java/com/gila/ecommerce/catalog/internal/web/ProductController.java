@@ -13,6 +13,8 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,6 +31,8 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequestMapping("/api/products")
 class ProductController {
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(ProductController.class);
+
 	private final CatalogOperations catalog;
 
 	ProductController(CatalogOperations catalog) {
@@ -38,6 +42,7 @@ class ProductController {
 	@PostMapping
 	ResponseEntity<ProductSnapshot> create(@Valid @RequestBody ProductRequest request) {
 		var created = catalog.create(request.toDraft());
+		LOGGER.info("event=product_created product_id={}", created.id());
 		var location = ServletUriComponentsBuilder.fromCurrentRequest()
 				.path("/{productId}")
 				.build(created.id());
@@ -67,12 +72,15 @@ class ProductController {
 
 	@PutMapping("/{productId}")
 	ProductSnapshot update(@PathVariable UUID productId, @Valid @RequestBody ProductRequest request) {
-		return catalog.update(productId, request.toDraft());
+		var updated = catalog.update(productId, request.toDraft());
+		LOGGER.info("event=product_updated product_id={}", updated.id());
+		return updated;
 	}
 
 	@DeleteMapping("/{productId}")
 	ResponseEntity<Void> delete(@PathVariable UUID productId) {
 		catalog.delete(productId);
+		LOGGER.info("event=product_deleted product_id={}", productId);
 		return ResponseEntity.noContent().build();
 	}
 

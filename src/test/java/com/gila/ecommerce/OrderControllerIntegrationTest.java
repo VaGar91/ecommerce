@@ -3,6 +3,7 @@ package com.gila.ecommerce;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -22,6 +23,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
@@ -46,21 +48,27 @@ class OrderControllerIntegrationTest {
 		var keyboardId = createProduct("Mechanical Keyboard", "KEY-001", "49.90", 25);
 		var cableId = createProduct("USB Cable", "CAB-002", "20.00", 10);
 
-		var result = mockMvc.perform(post("/api/orders")
-					.contentType(MediaType.APPLICATION_JSON)
-					.content(order("tok_approved", item(keyboardId, 2), item(cableId, 1))))
-				.andExpect(status().isCreated())
-				.andExpect(header().exists("Location"))
-				.andExpect(jsonPath("$.status").value("PAID"))
-				.andExpect(jsonPath("$.total").value(119.80))
-				.andExpect(jsonPath("$.currency").value("USD"))
-				.andExpect(jsonPath("$.paymentReference", startsWith("fake-")))
-				.andExpect(jsonPath("$.items.length()").value(2))
-				.andExpect(jsonPath("$.items[0].productName").value("Mechanical Keyboard"))
-				.andExpect(jsonPath("$.items[0].unitPrice").value(49.90))
-				.andExpect(jsonPath("$.items[0].quantity").value(2))
-				.andExpect(jsonPath("$.items[0].lineTotal").value(99.80))
-				.andReturn();
+		final MvcResult result;
+		try (var logs = TestLogCapture.forLogger("com.gila.ecommerce.ordering.internal.web.OrderController")) {
+			result = mockMvc.perform(post("/api/orders")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(order("tok_approved", item(keyboardId, 2), item(cableId, 1))))
+					.andExpect(status().isCreated())
+					.andExpect(header().exists("Location"))
+					.andExpect(jsonPath("$.status").value("PAID"))
+					.andExpect(jsonPath("$.total").value(119.80))
+					.andExpect(jsonPath("$.currency").value("USD"))
+					.andExpect(jsonPath("$.paymentReference", startsWith("fake-")))
+					.andExpect(jsonPath("$.items.length()").value(2))
+					.andExpect(jsonPath("$.items[0].productName").value("Mechanical Keyboard"))
+					.andExpect(jsonPath("$.items[0].unitPrice").value(49.90))
+					.andExpect(jsonPath("$.items[0].quantity").value(2))
+					.andExpect(jsonPath("$.items[0].lineTotal").value(99.80))
+					.andReturn();
+
+			assertTrue(logs.containsMessage("event=order_paid order_id="));
+			assertTrue(logs.containsMessage("item_count=2 total=119.80 currency=USD"));
+		}
 
 		var location = result.getResponse().getHeader("Location");
 		assertNotNull(location);
@@ -79,12 +87,18 @@ class OrderControllerIntegrationTest {
 	void rollsBackStockAndOrderWhenPaymentIsDeclined() throws Exception {
 		var productId = createProduct("Mechanical Keyboard", "KEY-001", "49.90", 25);
 
-		mockMvc.perform(post("/api/orders")
-					.contentType(MediaType.APPLICATION_JSON)
-					.content(order("tok_declined", item(productId, 2))))
-				.andExpect(status().isPaymentRequired())
-				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-				.andExpect(jsonPath("$.title").value("Payment declined"));
+		try (var logs = TestLogCapture.forLogger(
+				"com.gila.ecommerce.ordering.internal.web.OrderingExceptionHandler"
+		)) {
+			mockMvc.perform(post("/api/orders")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(order("tok_declined", item(productId, 2))))
+					.andExpect(status().isPaymentRequired())
+					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+					.andExpect(jsonPath("$.title").value("Payment declined"));
+
+			assertTrue(logs.containsMessage("event=payment_declined order_id="));
+		}
 
 		assertEquals(0L, count("purchase_orders"));
 		assertEquals(25, stock(productId));
@@ -95,20 +109,28 @@ class OrderControllerIntegrationTest {
 		var availableId = createProduct("Mechanical Keyboard", "KEY-001", "49.90", 5);
 		var unavailableId = createProduct("USB Cable", "CAB-002", "20.00", 1);
 
-		mockMvc.perform(post("/api/orders")
-					.contentType(MediaType.APPLICATION_JSON)
-					.content(order("tok_approved", item(availableId, 2), item(unavailableId, 2))))
-				.andExpect(status().isConflict())
-				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-				.andExpect(jsonPath("$.title").value("Insufficient stock"))
-				.andExpect(jsonPath("$.detail").value(
-						"Product \"USB Cable\" (CAB-002) has 1 unit available but 2 were requested"
-				))
-				.andExpect(jsonPath("$.productId").value(unavailableId.toString()))
-				.andExpect(jsonPath("$.productName").value("USB Cable"))
-				.andExpect(jsonPath("$.sku").value("CAB-002"))
-				.andExpect(jsonPath("$.requested").value(2))
-				.andExpect(jsonPath("$.available").value(1));
+		try (var logs = TestLogCapture.forLogger(
+				"com.gila.ecommerce.catalog.internal.web.CatalogExceptionHandler"
+		)) {
+			mockMvc.perform(post("/api/orders")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(order("tok_approved", item(availableId, 2), item(unavailableId, 2))))
+					.andExpect(status().isConflict())
+					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+					.andExpect(jsonPath("$.title").value("Insufficient stock"))
+					.andExpect(jsonPath("$.detail").value(
+							"Product \"USB Cable\" (CAB-002) has 1 unit available but 2 were requested"
+					))
+					.andExpect(jsonPath("$.productId").value(unavailableId.toString()))
+					.andExpect(jsonPath("$.productName").value("USB Cable"))
+					.andExpect(jsonPath("$.sku").value("CAB-002"))
+					.andExpect(jsonPath("$.requested").value(2))
+					.andExpect(jsonPath("$.available").value(1));
+
+			assertTrue(logs.containsMessage(
+					"event=order_stock_rejected product_id=%s requested=2 available=1".formatted(unavailableId)
+			));
+		}
 
 		assertEquals(0L, count("purchase_orders"));
 		assertEquals(5, stock(availableId));

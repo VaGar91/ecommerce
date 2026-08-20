@@ -1,6 +1,7 @@
 package com.gila.ecommerce;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -52,55 +53,64 @@ class ProductControllerIntegrationTest {
 
 	@Test
 	void performsTheCompleteProductLifecycle() throws Exception {
-		var creation = mockMvc.perform(post("/api/products")
-					.contentType(MediaType.APPLICATION_JSON)
-					.content(PRODUCT))
-				.andExpect(status().isCreated())
-				.andExpect(header().exists("Location"))
-				.andExpect(jsonPath("$.id").isNotEmpty())
-				.andExpect(jsonPath("$.sku").value("KEY-001"))
-				.andReturn();
+		try (var logs = TestLogCapture.forLogger("com.gila.ecommerce.catalog.internal.web.ProductController")) {
+			var creation = mockMvc.perform(post("/api/products")
+						.header("X-Request-ID", "product-lifecycle-test")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(PRODUCT))
+					.andExpect(status().isCreated())
+					.andExpect(header().string("X-Request-ID", "product-lifecycle-test"))
+					.andExpect(header().exists("Location"))
+					.andExpect(jsonPath("$.id").isNotEmpty())
+					.andExpect(jsonPath("$.sku").value("KEY-001"))
+					.andReturn();
 
-		var location = creation.getResponse().getHeader("Location");
-		assertNotNull(location);
-		var productPath = URI.create(location).getPath();
+			var location = creation.getResponse().getHeader("Location");
+			assertNotNull(location);
+			var productPath = URI.create(location).getPath();
 
-		mockMvc.perform(get(productPath))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.name").value("Mechanical Keyboard"))
-				.andExpect(jsonPath("$.stock").value(25));
+			mockMvc.perform(get(productPath))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.name").value("Mechanical Keyboard"))
+					.andExpect(jsonPath("$.stock").value(25));
 
-		mockMvc.perform(put(productPath)
-					.contentType(MediaType.APPLICATION_JSON)
-					.content("""
-							{
-							  "name": "Ergonomic Keyboard",
-							  "sku": "KEY-002",
-							  "description": "Split mechanical keyboard",
-							  "category": "Accessories",
-							  "price": 79.99,
-							  "stock": 12,
-							  "weightKg": 1.100
-							}
-							"""))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.name").value("Ergonomic Keyboard"))
-				.andExpect(jsonPath("$.sku").value("KEY-002"));
+			mockMvc.perform(put(productPath)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "name": "Ergonomic Keyboard",
+								  "sku": "KEY-002",
+								  "description": "Split mechanical keyboard",
+								  "category": "Accessories",
+								  "price": 79.99,
+								  "stock": 12,
+								  "weightKg": 1.100
+								}
+								"""))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.name").value("Ergonomic Keyboard"))
+					.andExpect(jsonPath("$.sku").value("KEY-002"));
 
-		mockMvc.perform(get("/api/products"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.content.length()").value(1))
-				.andExpect(jsonPath("$.content[0].sku").value("KEY-002"))
-				.andExpect(jsonPath("$.totalElements").value(1));
+			mockMvc.perform(get("/api/products"))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.content.length()").value(1))
+					.andExpect(jsonPath("$.content[0].sku").value("KEY-002"))
+					.andExpect(jsonPath("$.totalElements").value(1));
 
-		mockMvc.perform(delete(productPath))
-				.andExpect(status().isNoContent())
-				.andExpect(content().string(""));
+			mockMvc.perform(delete(productPath))
+					.andExpect(status().isNoContent())
+					.andExpect(content().string(""));
 
-		mockMvc.perform(get(productPath))
-				.andExpect(status().isNotFound())
-				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-				.andExpect(jsonPath("$.title").value("Product not found"));
+			mockMvc.perform(get(productPath))
+					.andExpect(status().isNotFound())
+					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+					.andExpect(jsonPath("$.title").value("Product not found"));
+
+			assertTrue(logs.containsRequestId("product-lifecycle-test"));
+			assertTrue(logs.containsMessage("event=product_created product_id="));
+			assertTrue(logs.containsMessage("event=product_updated product_id="));
+			assertTrue(logs.containsMessage("event=product_deleted product_id="));
+		}
 	}
 
 	@Test

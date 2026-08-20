@@ -51,7 +51,7 @@ public class OrderingService {
 				command.paymentToken()
 		));
 		if (!payment.approved()) {
-			throw new PaymentDeclinedException(payment.failureReason());
+			throw new PaymentDeclinedException(order.id(), payment.failureReason());
 		}
 
 		order.markPaid(payment.paymentReference());

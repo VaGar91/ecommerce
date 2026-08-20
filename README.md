@@ -14,6 +14,7 @@ shopping cart, and transactional checkout with a fake payment provider.
   cart review, and checkout.
 - Multi-stage, non-root application containers orchestrated with Docker
   Compose behind a single local HTTP entry point.
+- Correlated, low-noise business-event logs written to container stdout.
 - Unit, module-boundary, persistence integration, API integration, and frontend
   component tests.
 
@@ -80,8 +81,8 @@ of `com.gila.ecommerce` as application modules:
 - `productimport` parses and coordinates CSV imports through the catalog API.
 - `ordering` owns the purchase workflow and order state.
 - `payment` defines the payment boundary and its fake implementation.
-- `shared` contains technical concerns only, such as configuration and error
-  handling. It must not contain business rules.
+- `shared` contains technical concerns only, such as error handling and request
+  correlation. It must not contain business rules.
 
 A business module exposes its API from its root package. Code below an `internal`
 package is private to that module. `shared` is intentionally open because it
@@ -325,6 +326,29 @@ architecture is Spring Security with server-side sessions, secure HTTP-only
 cookies, CSRF protection, BCrypt password hashes, and backend role checks; a
 production deployment would normally delegate identity to an OIDC provider.
 
+### Strategic business logs instead of blanket request logging
+
+Application logs record only meaningful workflow outcomes: product mutations,
+CSV import summaries, paid orders, stock conflicts, invalid CSV documents, and
+payment declines. Successful outcomes use `INFO`; recoverable business
+rejections use `WARN`. Framework and infrastructure failures continue through
+Spring Boot's standard error logging. Logs are written to stdout so the same
+stream works locally and in containers.
+
+Every backend HTTP response includes `X-Request-ID`. A caller-supplied value is
+reused only when it is 1–64 safe ASCII identifier characters; otherwise the
+backend generates a UUID. The value is kept in MDC for the duration of the
+request and included in application log lines, then removed to prevent
+servlet-thread leakage.
+
+Logging every request, search, method entry, or database query was rejected
+because it would hide useful events in routine traffic. Request and response
+bodies, CSV contents, product text, payment tokens, credentials, and stack
+traces for expected validation failures are deliberately excluded. A production
+platform could emit the same fields as JSON and ship them to a centralized log
+system, but plain key-value console messages are easier to inspect in this local
+Docker deliverable and require no collector-specific dependency.
+
 ### Local-first verification instead of mandatory hosted CI
 
 The submission's acceptance path is intentionally the same one available to a
@@ -397,6 +421,22 @@ docker compose ps
 docker compose logs frontend
 docker compose logs app
 ```
+
+Follow backend logs, including the business events, with:
+
+```shell
+docker compose logs --follow app
+```
+
+Representative events are:
+
+- `product_created`, `product_updated`, and `product_deleted`
+- `product_import_completed` and `product_import_rejected`
+- `order_paid`, `order_stock_rejected`, and `payment_declined`
+
+Event fields contain generated identifiers, row/item counts, stock quantities,
+and order totals as applicable. They do not contain request bodies, raw CSV
+rows, product descriptions, payment tokens, or credentials.
 
 Stop the stack without deleting PostgreSQL data:
 
@@ -647,8 +687,8 @@ navigation and persistence would become tightly coupled to the route tree.
   would inject secrets, terminate TLS, define backup/restore procedures, and
   restrict administrative endpoints.
 - Actuator health endpoints provide container readiness information. Centralized
-  logs, metrics, tracing, alerting, and rate limiting would be deployment-level
-  additions rather than simulated challenge features.
+  log aggregation, metrics, distributed tracing, alerting, and rate limiting
+  would be deployment-level additions rather than simulated challenge features.
 
 ## Project status
 
@@ -657,8 +697,8 @@ product CRUD and search, row-resilient CSV import, and transactional checkout wi
 fake payment provider are complete. The React UI includes product administration,
 CSV import, storefront search, a persisted cart, and transactional checkout.
 The complete frontend, backend, and PostgreSQL stack is containerized behind a
-single local entry point. All functionality explicitly requested by the
-challenge is implemented and can be evaluated with the Docker instructions
-above. Continuous integration, browser automation, and production platform
-integration are optional extensions, not prerequisites for running the
-submission locally.
+single local entry point, and strategic workflow logs carry per-request
+correlation IDs. All functionality explicitly requested by the challenge is
+implemented and can be evaluated with the Docker instructions above. Continuous
+integration, browser automation, and production platform integration are
+optional extensions, not prerequisites for running the submission locally.
