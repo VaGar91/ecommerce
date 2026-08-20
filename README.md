@@ -444,9 +444,10 @@ Checkout locks all requested products in a stable order, validates inventory,
 decrements stock, charges the fake provider, and persists the paid order in one
 database transaction. A missing product returns `404`, insufficient stock
 returns `409`, and a fake payment decline returns `402`; each failure rolls back
-all inventory changes. Order lines retain product name, SKU, and unit price as
-they were at purchase time so later catalog changes do not rewrite order
-history.
+all inventory changes. Stock-conflict responses identify the product by name
+and SKU and include its product ID, requested quantity, and current availability
+as structured fields. Order lines retain product name, SKU, and unit price as
+they were at purchase time so later catalog changes do not rewrite order history.
 
 Keeping checkout in one transaction is appropriate for this challenge because
 the payment provider is an in-process fake with no independent side effects. A

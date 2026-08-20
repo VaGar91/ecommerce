@@ -66,7 +66,7 @@ public class Product {
 			throw new IllegalArgumentException("quantity must be greater than zero");
 		}
 		if (stock < quantity) {
-			throw new InsufficientStockException(id, quantity, stock);
+			throw new InsufficientStockException(id, name, sku, quantity, stock);
 		}
 		stock -= quantity;
 	}

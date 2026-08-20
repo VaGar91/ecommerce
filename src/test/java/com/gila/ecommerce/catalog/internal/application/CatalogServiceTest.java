@@ -141,10 +141,15 @@ class CatalogServiceTest {
 	void rejectsInsufficientStockWithoutMakingItNegative() {
 		var created = catalog.create(product("Keyboard", "KEY-001"));
 
-		assertThrows(
+		var exception = assertThrows(
 				InsufficientStockException.class,
 				() -> catalog.reserveStock(List.of(new StockRequest(created.id(), 26)))
 		);
+		assertEquals(created.id(), exception.productId());
+		assertEquals("Keyboard", exception.productName());
+		assertEquals("KEY-001", exception.sku());
+		assertEquals(26, exception.requested());
+		assertEquals(25, exception.available());
 		assertEquals(25, catalog.get(created.id()).stock());
 	}
 

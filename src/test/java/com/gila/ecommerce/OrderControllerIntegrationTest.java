@@ -100,7 +100,15 @@ class OrderControllerIntegrationTest {
 					.content(order("tok_approved", item(availableId, 2), item(unavailableId, 2))))
 				.andExpect(status().isConflict())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-				.andExpect(jsonPath("$.title").value("Insufficient stock"));
+				.andExpect(jsonPath("$.title").value("Insufficient stock"))
+				.andExpect(jsonPath("$.detail").value(
+						"Product \"USB Cable\" (CAB-002) has 1 unit available but 2 were requested"
+				))
+				.andExpect(jsonPath("$.productId").value(unavailableId.toString()))
+				.andExpect(jsonPath("$.productName").value("USB Cable"))
+				.andExpect(jsonPath("$.sku").value("CAB-002"))
+				.andExpect(jsonPath("$.requested").value(2))
+				.andExpect(jsonPath("$.available").value(1));
 
 		assertEquals(0L, count("purchase_orders"));
 		assertEquals(5, stock(availableId));

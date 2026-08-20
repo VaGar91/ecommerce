@@ -120,7 +120,12 @@ describe("CheckoutPage", () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({
       title: "Insufficient stock",
       status: 409,
-      detail: "Insufficient stock for product KEY-001",
+      detail: "Product \"Mechanical Keyboard\" (KEY-001) has 1 unit available but 2 were requested",
+      productId: keyboard.productId,
+      productName: keyboard.name,
+      sku: keyboard.sku,
+      requested: 2,
+      available: 1,
     }, 409));
     vi.stubGlobal("fetch", fetchMock);
     seedCart([keyboard]);
@@ -130,6 +135,8 @@ describe("CheckoutPage", () => {
 
     const error = await screen.findByRole("alert");
     expect(error).toHaveTextContent("Stock changed");
+    expect(error).toHaveTextContent("Mechanical Keyboard");
+    expect(error).toHaveTextContent("1 unit available but 2 were requested");
     expect(error).toHaveTextContent("No payment or inventory change was committed");
     expect(screen.getByRole("link", { name: "Return to cart" })).toHaveAttribute("href", "/cart");
     expect(readStoredCart()).toHaveLength(1);

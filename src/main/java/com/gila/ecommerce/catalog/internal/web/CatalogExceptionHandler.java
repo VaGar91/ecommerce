@@ -30,6 +30,11 @@ class CatalogExceptionHandler {
 	ProblemDetail handleInsufficientStock(InsufficientStockException exception) {
 		var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
 		problem.setTitle("Insufficient stock");
+		problem.setProperty("productId", exception.productId());
+		problem.setProperty("productName", exception.productName());
+		problem.setProperty("sku", exception.sku());
+		problem.setProperty("requested", exception.requested());
+		problem.setProperty("available", exception.available());
 		return problem;
 	}
 
