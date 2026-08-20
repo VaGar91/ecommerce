@@ -21,8 +21,10 @@ afterEach(() => {
 
 describe("ProductAdminPage", () => {
   it("lists, filters and paginates products", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockImplementation(() => Promise.resolve(
-      jsonResponse(productPage([product], { totalElements: 11, totalPages: 2 })),
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation((input) => Promise.resolve(
+      jsonResponse(isCategoriesRequest(input)
+        ? ["Accessories"]
+        : productPage([product], { totalElements: 11, totalPages: 2 })),
     ));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -30,6 +32,7 @@ describe("ProductAdminPage", () => {
 
     expect(await screen.findByText("Mechanical Keyboard")).toBeInTheDocument();
     expect(screen.getByText("KEY-001")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Accessories" })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Search"), { target: { value: "mechanical" } });
     fireEvent.change(screen.getByLabelText("Category"), { target: { value: "Accessories" } });
@@ -51,7 +54,9 @@ describe("ProductAdminPage", () => {
   });
 
   it("validates a new product before sending it", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(productPage([])));
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation((input) => Promise.resolve(
+      jsonResponse(isCategoriesRequest(input) ? [] : productPage([])),
+    ));
     vi.stubGlobal("fetch", fetchMock);
 
     renderAdmin();
@@ -63,11 +68,14 @@ describe("ProductAdminPage", () => {
     expect(await screen.findByText("Name is required")).toBeInTheDocument();
     expect(screen.getByText("SKU is required")).toBeInTheDocument();
     expect(screen.getByText("Weight is required")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("creates a product and refreshes the list", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockImplementation((_input, init) => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation((input, init) => {
+      if (isCategoriesRequest(input)) {
+        return Promise.resolve(jsonResponse(["Accessories"]));
+      }
       if (init?.method === "POST") {
         return Promise.resolve(jsonResponse(product, 201));
       }
@@ -98,7 +106,10 @@ describe("ProductAdminPage", () => {
   });
 
   it("maps backend field errors into the form", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockImplementation((_input, init) => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation((input, init) => {
+      if (isCategoriesRequest(input)) {
+        return Promise.resolve(jsonResponse([]));
+      }
       if (init?.method === "POST") {
         return Promise.resolve(jsonResponse({
           title: "Invalid request",
@@ -124,7 +135,10 @@ describe("ProductAdminPage", () => {
 
   it("updates and deletes a product with confirmation", async () => {
     const updatedProduct = { ...product, name: "Ergonomic Keyboard" };
-    const fetchMock = vi.fn<typeof fetch>().mockImplementation((_input, init) => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation((input, init) => {
+      if (isCategoriesRequest(input)) {
+        return Promise.resolve(jsonResponse(["Accessories"]));
+      }
       if (init?.method === "PUT") {
         return Promise.resolve(jsonResponse(updatedProduct));
       }
@@ -206,4 +220,8 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function isCategoriesRequest(input: RequestInfo | URL): boolean {
+  return String(input) === "/api/products/categories";
 }

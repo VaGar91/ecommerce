@@ -34,8 +34,10 @@ afterEach(() => {
 
 describe("CatalogPage", () => {
   it("renders stock-aware products and persists cart additions", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockImplementation(() =>
-      Promise.resolve(jsonResponse(productPage([keyboard, unavailableMonitor]))));
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation((input) =>
+      Promise.resolve(jsonResponse(isCategoriesRequest(input)
+        ? ["Accessories", "Displays"]
+        : productPage([keyboard, unavailableMonitor]))));
     vi.stubGlobal("fetch", fetchMock);
     const view = renderCatalog();
 
@@ -60,12 +62,15 @@ describe("CatalogPage", () => {
   });
 
   it("stores submitted search filters in the URL and API request", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockImplementation(() =>
-      Promise.resolve(jsonResponse(productPage([keyboard]))));
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation((input) =>
+      Promise.resolve(jsonResponse(isCategoriesRequest(input)
+        ? ["Accessories"]
+        : productPage([keyboard]))));
     vi.stubGlobal("fetch", fetchMock);
     renderCatalog();
 
     await screen.findByRole("heading", { name: "Mechanical Keyboard" });
+    expect(screen.getByRole("option", { name: "Accessories" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Search products"), { target: { value: "mechanical" } });
     fireEvent.change(screen.getByLabelText("Category"), { target: { value: "Accessories" } });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
@@ -82,8 +87,10 @@ describe("CatalogPage", () => {
   });
 
   it("paginates through URL-backed catalog results", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockImplementation(() =>
-      Promise.resolve(jsonResponse(productPage([keyboard], { totalElements: 13, totalPages: 2 }))));
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation((input) =>
+      Promise.resolve(jsonResponse(isCategoriesRequest(input)
+        ? ["Accessories"]
+        : productPage([keyboard], { totalElements: 13, totalPages: 2 }))));
     vi.stubGlobal("fetch", fetchMock);
     renderCatalog();
 
@@ -137,4 +144,8 @@ function jsonResponse(body: unknown): Response {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function isCategoriesRequest(input: RequestInfo | URL): boolean {
+  return String(input) === "/api/products/categories";
 }

@@ -3,7 +3,7 @@ import { useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router";
 
 import { ApiError } from "../../shared/api/http";
-import { listProducts, type Product } from "../../shared/api/products";
+import { listProductCategories, listProducts, type Product } from "../../shared/api/products";
 import { useCart } from "../cart/useCart";
 
 const PAGE_SIZE = 12;
@@ -15,6 +15,10 @@ export function CatalogPage() {
   const query = searchParameters.get("query")?.trim() ?? "";
   const category = searchParameters.get("category")?.trim() ?? "";
   const page = parsePage(searchParameters.get("page"));
+  const categoriesQuery = useQuery({
+    queryKey: ["product-categories"],
+    queryFn: listProductCategories,
+  });
   const productsQuery = useQuery({
     queryKey: ["products", "catalog", { query, category, page }],
     queryFn: () => listProducts({ query, category, page, size: PAGE_SIZE }),
@@ -57,6 +61,7 @@ export function CatalogPage() {
   };
 
   const products = productsQuery.data?.content ?? [];
+  const categories = includeSelectedCategory(categoriesQuery.data ?? [], category);
   const totalPages = productsQuery.data?.totalPages ?? 0;
 
   return (
@@ -84,12 +89,14 @@ export function CatalogPage() {
           </label>
           <label className="field">
             <span>Category</span>
-            <input
+            <select
               name="category"
               defaultValue={category}
-              placeholder="All categories"
-              maxLength={100}
-            />
+              aria-busy={categoriesQuery.isFetching}
+            >
+              <option value="">All categories</option>
+              {categories.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
           </label>
           <button className="button button-primary" type="submit">Search</button>
           {(query || category) && (
@@ -224,6 +231,10 @@ function CatalogError({ error, onRetry }: { error: Error; onRetry: () => void })
 function parsePage(value: string | null): number {
   const page = Number(value);
   return Number.isInteger(page) && page >= 0 ? page : 0;
+}
+
+function includeSelectedCategory(categories: string[], selected: string): string[] {
+  return selected && !categories.includes(selected) ? [selected, ...categories] : categories;
 }
 
 function cartButtonLabel(stock: number, cartQuantity: number): string {

@@ -1,5 +1,6 @@
 package com.gila.ecommerce.catalog.internal.web;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.gila.ecommerce.catalog.CatalogOperations;
@@ -47,6 +48,11 @@ class ProductController {
 	@GetMapping("/{productId}")
 	ProductSnapshot get(@PathVariable UUID productId) {
 		return catalog.get(productId);
+	}
+
+	@GetMapping("/categories")
+	List<String> categories() {
+		return catalog.categories();
 	}
 
 	@GetMapping

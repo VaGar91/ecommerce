@@ -41,7 +41,11 @@ export function listProducts(search: ProductSearch): Promise<ProductPage> {
     parameters.set("category", search.category.trim());
   }
 
-  return apiRequest<ProductPage>(`/products?${parameters.toString()}`);
+	return apiRequest<ProductPage>(`/products?${parameters.toString()}`);
+}
+
+export function listProductCategories(): Promise<string[]> {
+  return apiRequest<string[]>("/products/categories");
 }
 
 export function createProduct(product: ProductDraft): Promise<Product> {

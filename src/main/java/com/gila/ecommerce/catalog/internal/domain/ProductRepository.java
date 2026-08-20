@@ -18,6 +18,8 @@ public interface ProductRepository {
 
 	ProductSearchResult search(ProductSearchQuery query);
 
+	List<String> findCategories();
+
 	boolean existsBySku(String sku);
 
 	boolean existsBySkuAndIdNot(String sku, UUID productId);

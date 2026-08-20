@@ -183,6 +183,19 @@ class ProductControllerIntegrationTest {
 	}
 
 	@Test
+	void listsCurrentCategoriesWithoutCaseDuplicates() throws Exception {
+		createProduct("Keyboard", "KEY-100", "Mechanical keyboard", "Accessories");
+		createProduct("Mouse", "MOU-200", "Wireless mouse", "accessories");
+		createProduct("Monitor", "MON-300", "4K display", "Displays");
+
+		mockMvc.perform(get("/api/products/categories"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(2))
+				.andExpect(jsonPath("$[0]").value("Accessories"))
+				.andExpect(jsonPath("$[1]").value("Displays"));
+	}
+
+	@Test
 	void rejectsInvalidPagination() throws Exception {
 		mockMvc.perform(get("/api/products").param("page", "-1").param("size", "101"))
 				.andExpect(status().isBadRequest())

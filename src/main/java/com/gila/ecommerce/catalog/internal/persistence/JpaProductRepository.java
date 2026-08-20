@@ -24,6 +24,14 @@ interface JpaProductRepository extends JpaRepository<Product, UUID>, JpaSpecific
 	@Query("SELECT product FROM Product product WHERE product.id IN :productIds ORDER BY product.id")
 	List<Product> findAllByIdForUpdate(@Param("productIds") List<UUID> productIds);
 
+	@Query(value = """
+			SELECT min(category)
+			FROM products
+			GROUP BY lower(category)
+			ORDER BY lower(category)
+			""", nativeQuery = true)
+	List<String> findCategories();
+
 	boolean existsBySkuAndIdNot(String sku, UUID productId);
 
 }

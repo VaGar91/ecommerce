@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.UUID;
 
 import com.gila.ecommerce.catalog.ProductDraft;
@@ -98,6 +99,23 @@ class CatalogServiceTest {
 	}
 
 	@Test
+	void listsCurrentCategoriesWithoutCaseDuplicates() {
+		catalog.create(product("Keyboard", "KEY-001"));
+		catalog.create(product("Mouse", "MOU-002"));
+		catalog.create(new ProductDraft(
+				"Monitor",
+				"MON-003",
+				"4K monitor",
+				"Displays",
+				new BigDecimal("399.99"),
+				10,
+				new BigDecimal("5.000")
+		));
+
+		assertEquals(List.of("Accessories", "Displays"), catalog.categories());
+	}
+
+	@Test
 	void reservesStockAndReturnsAStableProductSnapshot() {
 		var created = catalog.create(product("Keyboard", "KEY-001"));
 
@@ -168,6 +186,13 @@ class CatalogServiceTest {
 			var totalPages = (int) Math.ceil((double) matches.size() / query.size());
 
 			return new ProductSearchResult(matches.subList(fromIndex, toIndex), matches.size(), totalPages);
+		}
+
+		@Override
+		public List<String> findCategories() {
+			var categories = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
+			products.values().forEach(product -> categories.putIfAbsent(product.category(), product.category()));
+			return List.copyOf(categories.values());
 		}
 
 		@Override

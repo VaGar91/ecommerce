@@ -61,6 +61,11 @@ class ProductPersistenceAdapter implements ProductRepository {
 	}
 
 	@Override
+	public List<String> findCategories() {
+		return products.findCategories();
+	}
+
+	@Override
 	public boolean existsBySku(String sku) {
 		return products.existsBySku(sku);
 	}

@@ -13,6 +13,8 @@ public interface CatalogOperations {
 
 	ProductPage search(ProductSearchQuery query);
 
+	List<String> categories();
+
 	List<ProductUpsertResult> upsertAll(List<ProductDraft> products);
 
 	List<StockReservation> reserveStock(List<StockRequest> requests);

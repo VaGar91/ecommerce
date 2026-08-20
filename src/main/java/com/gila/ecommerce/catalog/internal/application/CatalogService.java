@@ -74,6 +74,12 @@ public class CatalogService implements CatalogOperations {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
+	public List<String> categories() {
+		return products.findCategories();
+	}
+
+	@Override
 	@Transactional
 	public List<ProductUpsertResult> upsertAll(List<ProductDraft> drafts) {
 		return drafts.stream().map(this::upsert).toList();

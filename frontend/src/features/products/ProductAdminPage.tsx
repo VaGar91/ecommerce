@@ -5,6 +5,7 @@ import { ApiError } from "../../shared/api/http";
 import {
   createProduct,
   deleteProduct,
+  listProductCategories,
   listProducts,
   updateProduct,
   type Product,
@@ -37,6 +38,10 @@ export function ProductAdminPage() {
     queryFn: () => listProducts({ ...filters, page, size: PAGE_SIZE }),
     placeholderData: (previousData) => previousData,
   });
+  const categoriesQuery = useQuery({
+    queryKey: ["product-categories"],
+    queryFn: listProductCategories,
+  });
 
   const createMutation = useMutation({ mutationFn: createProduct });
   const updateMutation = useMutation({
@@ -62,6 +67,7 @@ export function ProductAdminPage() {
 
     setEditor(undefined);
     void queryClient.invalidateQueries({ queryKey: ["products"] });
+    void queryClient.invalidateQueries({ queryKey: ["product-categories"] });
   };
 
   const confirmDelete = async () => {
@@ -79,6 +85,7 @@ export function ProductAdminPage() {
       } else {
         void queryClient.invalidateQueries({ queryKey: ["products"] });
       }
+      void queryClient.invalidateQueries({ queryKey: ["product-categories"] });
     } catch {
       // The mutation error is rendered in the confirmation dialog.
     }
@@ -103,6 +110,7 @@ export function ProductAdminPage() {
   };
 
   const products = productsQuery.data?.content ?? [];
+  const categories = includeSelectedCategory(categoriesQuery.data ?? [], draftFilters.category);
   const totalPages = productsQuery.data?.totalPages ?? 0;
 
   return (
@@ -133,12 +141,14 @@ export function ProductAdminPage() {
         </label>
         <label className="field">
           <span>Category</span>
-          <input
+          <select
             value={draftFilters.category}
             onChange={(event) => setDraftFilters((current) => ({ ...current, category: event.target.value }))}
-            placeholder="All categories"
-            maxLength={100}
-          />
+            aria-busy={categoriesQuery.isFetching}
+          >
+            <option value="">All categories</option>
+            {categories.map((category) => <option key={category} value={category}>{category}</option>)}
+          </select>
         </label>
         <button className="button button-secondary" type="submit">Apply filters</button>
       </form>
@@ -319,4 +329,8 @@ function formatDecimal(value: number, maximumFractionDigits: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits,
   }).format(value);
+}
+
+function includeSelectedCategory(categories: string[], selected: string): string[] {
+  return selected && !categories.includes(selected) ? [selected, ...categories] : categories;
 }
