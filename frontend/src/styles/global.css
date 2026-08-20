@@ -722,6 +722,11 @@ h1 {
   background: #f4faf6;
 }
 
+.report-partial {
+  border-color: #d8bd7d;
+  background: #fffaf0;
+}
+
 .report-heading {
   display: flex;
   align-items: flex-end;

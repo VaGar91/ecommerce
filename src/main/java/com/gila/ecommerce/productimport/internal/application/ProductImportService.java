@@ -1,7 +1,6 @@
 package com.gila.ecommerce.productimport.internal.application;
 
 import java.io.InputStream;
-import java.util.List;
 
 import com.gila.ecommerce.catalog.CatalogOperations;
 import com.gila.ecommerce.productimport.internal.csv.ProductCsvParser;
@@ -21,17 +20,12 @@ public class ProductImportService {
 
 	public ProductImportReport importCsv(InputStream input) {
 		var parsed = parser.parse(input);
-		if (!parsed.errors().isEmpty()) {
-			throw new ProductImportValidationException(
-					new ProductImportReport(parsed.totalRows(), 0, 0, parsed.errors())
-			);
-		}
-
 		var results = catalog.upsertAll(parsed.products());
 		var created = (int) results.stream().filter(result -> result.created()).count();
 		var updated = results.size() - created;
+		var rejected = parsed.totalRows() - results.size();
 
-		return new ProductImportReport(parsed.totalRows(), created, updated, List.of());
+		return new ProductImportReport(parsed.totalRows(), created, updated, rejected, parsed.errors());
 	}
 
 }

@@ -85,7 +85,7 @@ export function ProductForm({ product, onCancel, onSubmit }: ProductFormProps) {
             aria-invalid={Boolean(errors.name)}
             {...register("name", {
               required: "Name is required",
-              validate: (value) => value.trim().length > 0 || "Name is required",
+              validate: (value) => validatePlainText(value, "Name"),
               maxLength: { value: 200, message: "Name must not exceed 200 characters" },
             })}
           />
@@ -99,7 +99,7 @@ export function ProductForm({ product, onCancel, onSubmit }: ProductFormProps) {
             autoCapitalize="characters"
             {...register("sku", {
               required: "SKU is required",
-              validate: (value) => value.trim().length > 0 || "SKU is required",
+              validate: (value) => validatePlainText(value, "SKU"),
               maxLength: { value: 64, message: "SKU must not exceed 64 characters" },
             })}
           />
@@ -112,7 +112,7 @@ export function ProductForm({ product, onCancel, onSubmit }: ProductFormProps) {
             aria-invalid={Boolean(errors.category)}
             {...register("category", {
               required: "Category is required",
-              validate: (value) => value.trim().length > 0 || "Category is required",
+              validate: (value) => validatePlainText(value, "Category"),
               maxLength: { value: 100, message: "Category must not exceed 100 characters" },
             })}
           />
@@ -126,7 +126,7 @@ export function ProductForm({ product, onCancel, onSubmit }: ProductFormProps) {
             rows={4}
             {...register("description", {
               required: "Description is required",
-              validate: (value) => value.trim().length > 0 || "Description is required",
+              validate: (value) => validatePlainText(value, "Description"),
               maxLength: { value: 2_000, message: "Description must not exceed 2,000 characters" },
             })}
           />
@@ -220,4 +220,11 @@ function toFormValues(product?: Product): ProductFormValues {
 
 function isProductField(field: string): field is keyof ProductFormValues {
   return fieldNames.has(field as keyof ProductFormValues);
+}
+
+function validatePlainText(value: string, label: string): true | string {
+  if (!value.trim()) {
+    return `${label} is required`;
+  }
+  return /[<>]/.test(value) ? `${label} must not contain HTML markup` : true;
 }

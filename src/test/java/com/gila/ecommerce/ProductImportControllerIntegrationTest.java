@@ -46,6 +46,7 @@ class ProductImportControllerIntegrationTest {
 				.andExpect(jsonPath("$.totalRows").value(2))
 				.andExpect(jsonPath("$.created").value(2))
 				.andExpect(jsonPath("$.updated").value(0))
+				.andExpect(jsonPath("$.rejected").value(0))
 				.andExpect(jsonPath("$.errors.length()").value(0));
 
 		var updated = csvFile("""
@@ -57,28 +58,34 @@ class ProductImportControllerIntegrationTest {
 		mockMvc.perform(multipart("/api/product-imports").file(updated))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.created").value(0))
-				.andExpect(jsonPath("$.updated").value(2));
+				.andExpect(jsonPath("$.updated").value(2))
+				.andExpect(jsonPath("$.rejected").value(0));
 
 		assertDatabaseValue("SELECT count(*) FROM products", Long.class, 2L);
 		assertDatabaseValue("SELECT name FROM products WHERE sku = 'CAB-001'", String.class, "Premium USB Cable");
 	}
 
 	@Test
-	void rejectsEveryRowAtomicallyWhenAnyRowIsInvalid() throws Exception {
+	void importsValidRowsAndReportsInvalidRows() throws Exception {
 		var file = csvFile("""
 				name,sku,description,category,price,stock,weight_kg
 				USB Cable,CAB-001,Braided cable,Electronics,12.50,30,0.125
 				Wireless Mouse,MOU-002,Ergonomic mouse,Electronics,free,20,0.100
+				<script>alert('xss')</script>,SCR-003,Unsafe product,Electronics,19.99,10,0.100
 				""");
 
 		mockMvc.perform(multipart("/api/product-imports").file(file))
-				.andExpect(status().isUnprocessableContent())
-				.andExpect(jsonPath("$.totalRows").value(2))
-				.andExpect(jsonPath("$.created").value(0))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalRows").value(3))
+				.andExpect(jsonPath("$.created").value(1))
 				.andExpect(jsonPath("$.updated").value(0))
-				.andExpect(jsonPath("$.errors[0].field").value("price"));
+				.andExpect(jsonPath("$.rejected").value(2))
+				.andExpect(jsonPath("$.errors[0].field").value("price"))
+				.andExpect(jsonPath("$.errors[1].field").value("name"))
+				.andExpect(jsonPath("$.errors[1].message").value("must not contain HTML markup"));
 
-		assertDatabaseValue("SELECT count(*) FROM products", Long.class, 0L);
+		assertDatabaseValue("SELECT count(*) FROM products", Long.class, 1L);
+		assertDatabaseValue("SELECT name FROM products", String.class, "USB Cable");
 	}
 
 	@Test

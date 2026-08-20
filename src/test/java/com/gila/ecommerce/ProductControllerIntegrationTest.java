@@ -143,6 +143,17 @@ class ProductControllerIntegrationTest {
 	}
 
 	@Test
+	void rejectsHtmlMarkupAsProductData() throws Exception {
+		mockMvc.perform(post("/api/products")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(PRODUCT.replace("Mechanical Keyboard", "<script>alert('xss')</script>")))
+				.andExpect(status().isBadRequest())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+				.andExpect(jsonPath("$.title").value("Invalid request"))
+				.andExpect(jsonPath("$.errors.name").value("must not contain HTML markup"));
+	}
+
+	@Test
 	void searchesFiltersAndPaginatesProducts() throws Exception {
 		createProduct("Alpha Keyboard", "KEY-100", "Mechanical keyboard", "Accessories");
 		createProduct("Beta Monitor", "MON-200", "4K display", "Displays");

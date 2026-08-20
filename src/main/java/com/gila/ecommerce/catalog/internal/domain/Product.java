@@ -95,6 +95,9 @@ public class Product {
 		if (normalized.length() > maxLength) {
 			throw new IllegalArgumentException(field + " must not exceed " + maxLength + " characters");
 		}
+		if (normalized.indexOf('<') >= 0 || normalized.indexOf('>') >= 0) {
+			throw new IllegalArgumentException(field + " must not contain HTML markup");
+		}
 		return normalized;
 	}
 

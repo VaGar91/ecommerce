@@ -71,6 +71,26 @@ describe("ProductAdminPage", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("rejects HTML markup before sending product data", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation((input) => Promise.resolve(
+      jsonResponse(isCategoriesRequest(input) ? ["Accessories"] : productPage([])),
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderAdmin();
+
+    await screen.findByText("No products yet.");
+    fireEvent.click(screen.getByRole("button", { name: "Add product" }));
+    fillProductForm();
+    fireEvent.change(within(screen.getByRole("dialog")).getByLabelText("Name"), {
+      target: { value: "<script>alert('xss')</script>" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create product" }));
+
+    expect(await screen.findByText("Name must not contain HTML markup")).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+  });
+
   it("creates a product and refreshes the list", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockImplementation((input, init) => {
       if (isCategoriesRequest(input)) {

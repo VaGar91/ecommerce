@@ -59,12 +59,13 @@ class ProductCsvParserTest {
 				Duplicate,key-001,Duplicate SKU,Electronics,59.90,10,0.900
 				Mouse,MOU-001,Wireless mouse,Electronics,free,15,0.120
 				,DESK-001,Standing desk,Home & Office,399.00,-1,0
+				<script>alert('xss')</script>,SCR-001,Unsafe product,Electronics,19.99,10,0.100
 
 				""";
 
 		var result = parser.parse(input(csv));
 
-		assertEquals(4, result.totalRows());
+		assertEquals(5, result.totalRows());
 		assertEquals(1, result.products().size());
 		assertTrue(result.errors().stream()
 				.anyMatch(error -> error.field().equals("sku") && error.message().contains("duplicates")));
@@ -76,6 +77,8 @@ class ProductCsvParserTest {
 				.anyMatch(error -> error.field().equals("stock") && error.message().equals("must not be negative")));
 		assertTrue(result.errors().stream()
 				.anyMatch(error -> error.field().equals("weight_kg") && error.message().equals("must be greater than zero")));
+		assertTrue(result.errors().stream()
+				.anyMatch(error -> error.field().equals("name") && error.message().equals("must not contain HTML markup")));
 	}
 
 	@Test

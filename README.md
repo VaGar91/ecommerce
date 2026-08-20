@@ -8,7 +8,7 @@ shopping cart, and transactional checkout with a fake payment provider.
 
 - PostgreSQL local database managed with versioned Flyway migrations.
 - Product CRUD, search, pagination, validation, and inventory management.
-- Atomic CSV validation and import with idempotent SKU-based upserts.
+- Row-level CSV validation with idempotent SKU-based upserts for valid products.
 - Transactional purchase flow with deterministic fake payment outcomes.
 - React interfaces for product administration, CSV import, catalog search,
   cart review, and checkout.
@@ -151,19 +151,31 @@ dataset, they would add synchronization, eventual consistency, and operational
 cost without a demonstrated need. The catalog boundary allows that search
 implementation to be replaced later without changing the web contract.
 
-### Atomic CSV upsert instead of partial or insert-only import
+### Valid-row CSV upsert instead of all-or-nothing import or sanitization
 
-The importer validates the complete document before writing and rejects the
-entire file when any row is invalid. This prevents a user from having to infer
-which portion of a failed file was committed. Valid files upsert by normalized
-SKU, so retrying the same import is safe and refreshes catalog data rather than
-creating duplicates.
+The importer validates the complete document, separates accepted rows from
+rejected rows, and applies the valid subset in one transaction. Its report makes
+the outcome explicit with total, created, updated, and rejected counts plus
+field-level errors. Valid rows upsert by normalized SKU, so retrying a corrected
+file is safe and refreshes catalog data rather than creating duplicates.
 
-Partial row-by-row import was rejected because it creates ambiguous recovery
-and reconciliation work. Insert-only behavior was rejected because supplier
-feeds commonly contain updates. An asynchronous job would be preferable for
-very large files, but the explicit 5 MB and 10,000-row limits keep synchronous
-processing bounded and give the UI an immediate result.
+An all-or-nothing import was considered and initially implemented, but one bad
+row could prevent a large set of otherwise useful products from loading.
+Accepting valid rows gives operators immediate progress while the detailed
+report provides the reconciliation contract needed to correct and retry only
+the rejected data. Insert-only behavior was rejected because supplier feeds
+commonly contain updates.
+
+HTML-like markup is rejected rather than silently sanitized. Sanitization is
+rendering-context dependent and could modify a product name or description
+without making the change clear to the operator. Rejecting angle-bracket markup
+preserves the submitted values for correction, applies consistently to CRUD and
+CSV inputs, and is reinforced by a database check constraint. React also escapes
+all rendered product text, and persistence remains parameterized.
+
+An asynchronous job would be preferable for very large files, but the explicit
+5 MB and 10,000-row limits keep synchronous processing bounded and give the UI
+an immediate result.
 
 ### Transactional checkout behind a payment boundary
 
@@ -209,17 +221,18 @@ backend image contain only the Java runtime and application.
 The example CSV file supplied with the challenge was downloaded on
 **2026-08-19**.
 
-The supplied document is an adversarial validation example rather than a clean
+The supplied document is a mixed-quality validation example rather than a clean
 seed file. It contains valid quoted and Unicode text alongside malformed prices,
 negative stock, missing required values, zero weight, a duplicate SKU, and
-HTML- and SQL-like strings. As supplied, it is expected to return `422
-Unprocessable Content`; the response and import UI report the invalid rows and
-the database remains unchanged. The string payloads are treated as data: JPA
-uses parameterized persistence and React escapes rendered text.
+HTML- and SQL-like strings. The import completes with a report: valid products
+are created or updated, while invalid rows and later duplicate SKU occurrences
+are rejected with field-level errors. HTML-like markup is invalid catalog data;
+SQL-like text without markup remains inert data because JPA uses parameterized
+persistence and React escapes rendered text.
 
-To exercise the successful path, correct or remove every invalid row and keep
-each normalized SKU unique within the file. A corrected file is imported in one
-transaction, and importing it again updates the existing products by SKU.
+After correcting the rejected rows, the file can be uploaded again. Products
+already accepted by the first attempt are updated by normalized SKU, while the
+corrected rows are created.
 
 ## Running with Docker
 
@@ -346,6 +359,8 @@ Product CRUD is available below `/api/products`:
 - `GET /api/products/{id}` returns one product.
 - `GET /api/products` searches products and returns a page ordered by name and
   SKU.
+- `GET /api/products/categories` returns the current distinct categories for
+  the catalog and administration filter dropdowns.
 - `PUT /api/products/{id}` replaces a product.
 - `DELETE /api/products/{id}` deletes a product and returns `204 No Content`.
 
@@ -393,15 +408,16 @@ name,sku,description,category,price,stock,weight_kg
 ```
 
 Completely blank lines are ignored. Every nonblank row is validated before any
-database write. If a row is invalid or a SKU appears twice in the file, the API
-returns `422 Unprocessable Content` with row and field errors, and the entire
-import is rejected. A valid file is committed atomically and upserts products by
-normalized SKU, making repeated imports idempotent. The response reports total,
-created, and updated row counts.
+database write. Invalid numeric or required values, HTML-like markup, and later
+duplicate SKU occurrences reject only their affected rows. The accepted rows
+are upserted by normalized SKU in one transaction, making corrected retries
+idempotent. A syntactically valid CSV returns `200 OK` with total, created,
+updated, rejected, and field-level error details. An invalid document or header
+contract returns `400 Bad Request` without changing products.
 
 The supplied example CSV intentionally exercises validation cases, including
-nonnumeric prices, negative stock, missing required fields, zero weight, and
-duplicate SKUs.
+nonnumeric prices, negative stock, missing required fields, zero weight,
+duplicate SKUs, and HTML-like product names. Its valid rows still load.
 
 ## Purchase API
 
@@ -478,7 +494,7 @@ navigation and persistence would become tightly coupled to the route tree.
 ## Project status
 
 The backend bootstrap, module boundaries, local database infrastructure,
-product CRUD and search, atomic CSV import, and transactional checkout with a
+product CRUD and search, row-resilient CSV import, and transactional checkout with a
 fake payment provider are complete. The React UI includes product administration,
 CSV import, storefront search, a persisted cart, and transactional checkout.
 The complete frontend, backend, and PostgreSQL stack is containerized behind a

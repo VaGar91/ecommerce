@@ -25,6 +25,7 @@ describe("ProductImportPage", () => {
       totalRows: 2,
       created: 1,
       updated: 1,
+      rejected: 0,
       errors: [],
     }));
     vi.stubGlobal("fetch", fetchMock);
@@ -47,27 +48,29 @@ describe("ProductImportPage", () => {
     expect(new Headers(request?.headers).has("Content-Type")).toBe(false);
   });
 
-  it("renders row-level errors when the atomic import is rejected", async () => {
+  it("commits valid rows and renders errors for rejected rows", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({
       totalRows: 3,
-      created: 0,
+      created: 1,
       updated: 0,
+      rejected: 2,
       errors: [
         { row: 3, field: "price", message: "must be a decimal number" },
-        { row: 4, field: "sku", message: "duplicates SKU from row 2" },
+        { row: 4, field: "name", message: "must not contain HTML markup" },
       ],
-    }, 422));
+    }));
     vi.stubGlobal("fetch", fetchMock);
     renderImportPage();
 
     selectFile(validCsvFile());
     fireEvent.click(screen.getByRole("button", { name: "Import products" }));
 
-    expect(await screen.findByRole("heading", { name: "Import rejected" })).toBeInTheDocument();
-    expect(screen.getByText("No products changed")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Import completed with rejected rows" })).toBeInTheDocument();
+    expect(screen.getByText("Valid rows committed")).toBeInTheDocument();
+    expect(screen.getByText(/1 row was imported/)).toBeInTheDocument();
     expect(screen.getByText("2 validation issues")).toBeInTheDocument();
     expect(screen.getByText("must be a decimal number")).toBeInTheDocument();
-    expect(screen.getByText("duplicates SKU from row 2")).toBeInTheDocument();
+    expect(screen.getByText("must not contain HTML markup")).toBeInTheDocument();
   });
 
   it("shows the backend problem when the CSV document is malformed", async () => {

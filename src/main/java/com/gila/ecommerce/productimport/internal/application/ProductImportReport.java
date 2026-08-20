@@ -6,6 +6,7 @@ public record ProductImportReport(
 		int totalRows,
 		int created,
 		int updated,
+		int rejected,
 		List<ProductImportRowError> errors
 ) {
 

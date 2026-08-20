@@ -55,6 +55,15 @@ class CatalogServiceTest {
 	}
 
 	@Test
+	void rejectsHtmlMarkupAtTheDomainBoundary() {
+		assertThrows(
+				IllegalArgumentException.class,
+				() -> catalog.create(product("<script>alert('xss')</script>", "SCR-001"))
+		);
+		assertEquals(0, catalog.search(new ProductSearchQuery("", "", 0, 20)).totalElements());
+	}
+
+	@Test
 	void updatesAndListsProducts() {
 		var created = catalog.create(product("Keyboard", "KEY-001"));
 		var updatedDraft = new ProductDraft(

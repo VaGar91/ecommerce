@@ -10,14 +10,11 @@ export type ProductImportReport = {
   totalRows: number;
   created: number;
   updated: number;
+  rejected: number;
   errors: ProductImportRowError[];
 };
 
-export type ProductImportResult =
-  | { outcome: "imported"; report: ProductImportReport }
-  | { outcome: "rejected"; report: ProductImportReport };
-
-export async function importProducts(file: File): Promise<ProductImportResult> {
+export async function importProducts(file: File): Promise<ProductImportReport> {
   const body = new FormData();
   body.append("file", file);
 
@@ -27,13 +24,6 @@ export async function importProducts(file: File): Promise<ProductImportResult> {
     body,
   });
   const responseBody: unknown = await readJson(response);
-
-  if (response.status === 422) {
-    if (isImportReport(responseBody)) {
-      return { outcome: "rejected", report: responseBody };
-    }
-    throw new ApiError(422, unreadableResponseProblem(422));
-  }
 
   if (!response.ok) {
     throw new ApiError(response.status, isApiProblem(responseBody)
@@ -45,7 +35,7 @@ export async function importProducts(file: File): Promise<ProductImportResult> {
     throw new ApiError(response.status, unreadableResponseProblem(response.status));
   }
 
-  return { outcome: "imported", report: responseBody };
+  return responseBody;
 }
 
 async function readJson(response: Response): Promise<unknown> {
@@ -64,6 +54,7 @@ function isImportReport(value: unknown): value is ProductImportReport {
   return isNonNegativeInteger(value.totalRows)
     && isNonNegativeInteger(value.created)
     && isNonNegativeInteger(value.updated)
+    && isNonNegativeInteger(value.rejected)
     && Array.isArray(value.errors)
     && value.errors.every(isRowError);
 }

@@ -15,8 +15,9 @@ export function ProductImportPage() {
   const importMutation = useMutation({
     mutationFn: importProducts,
     onSuccess: (result) => {
-      if (result.outcome === "imported") {
+      if (result.created + result.updated > 0) {
         void queryClient.invalidateQueries({ queryKey: ["products"] });
+        void queryClient.invalidateQueries({ queryKey: ["product-categories"] });
       }
     },
   });
@@ -66,7 +67,7 @@ export function ProductImportPage() {
         <div>
           <p className="eyebrow">Bulk operations</p>
           <h1>Import product data</h1>
-          <p className="lede">Create or update catalog records from one validated CSV file.</p>
+          <p className="lede">Import valid catalog records and receive row-level feedback for rejected data.</p>
         </div>
       </div>
 
@@ -74,7 +75,7 @@ export function ProductImportPage() {
         <form className="import-card" onSubmit={submit}>
           <div>
             <h2>Choose a CSV file</h2>
-            <p>Files are validated completely before any product is written.</p>
+            <p>Every row is validated; invalid rows are skipped without blocking valid products.</p>
           </div>
 
           <label
@@ -134,22 +135,25 @@ export function ProductImportPage() {
           <ul>
             <li>SKUs are matched case-insensitively and stored in uppercase.</li>
             <li>Existing SKUs are updated; new SKUs are created.</li>
-            <li>Any invalid row rejects the entire file, so partial imports cannot occur.</li>
+            <li>HTML-like markup and invalid values reject only the affected rows.</li>
           </ul>
         </aside>
       </div>
 
-      {result?.outcome === "imported" && <ImportSuccess report={result.report} />}
-      {result?.outcome === "rejected" && <ImportRejected report={result.report} />}
+      {result && <ImportReport report={result} />}
     </section>
   );
 }
 
-function ImportSuccess({ report }: { report: ProductImportReport }) {
+function ImportReport({ report }: { report: ProductImportReport }) {
+  if (report.errors.length > 0) {
+    return <ImportWithRejectedRows report={report} />;
+  }
+
   return (
     <section className="report-panel report-success" aria-labelledby="import-success-title" role="status">
       <div>
-        <p className="eyebrow">Committed atomically</p>
+        <p className="eyebrow">All rows accepted</p>
         <h2 id="import-success-title">Import complete</h2>
         <p>All {report.totalRows.toLocaleString()} rows passed validation and are now in the catalog.</p>
       </div>
@@ -158,14 +162,21 @@ function ImportSuccess({ report }: { report: ProductImportReport }) {
   );
 }
 
-function ImportRejected({ report }: { report: ProductImportReport }) {
+function ImportWithRejectedRows({ report }: { report: ProductImportReport }) {
+  const imported = report.created + report.updated;
+  const title = imported > 0 ? "Import completed with rejected rows" : "No rows imported";
+
   return (
-    <section className="report-panel report-rejected" aria-labelledby="import-rejected-title" role="alert">
+    <section className="report-panel report-partial" aria-labelledby="import-report-title" role="status">
       <div className="report-heading">
         <div>
-          <p className="eyebrow">No products changed</p>
-          <h2 id="import-rejected-title">Import rejected</h2>
-          <p>Correct every issue below and upload the file again.</p>
+          <p className="eyebrow">{imported > 0 ? "Valid rows committed" : "Every row rejected"}</p>
+          <h2 id="import-report-title">{title}</h2>
+          <p>
+            {imported > 0
+              ? `${imported.toLocaleString()} ${imported === 1 ? "row was" : "rows were"} imported. Correct the rejected rows and upload them again.`
+              : "Correct the issues below and upload the affected rows again."}
+          </p>
         </div>
         <ReportMetrics report={report} />
       </div>
@@ -201,6 +212,7 @@ function ReportMetrics({ report }: { report: ProductImportReport }) {
       <div><dt>Rows</dt><dd>{report.totalRows.toLocaleString()}</dd></div>
       <div><dt>Created</dt><dd>{report.created.toLocaleString()}</dd></div>
       <div><dt>Updated</dt><dd>{report.updated.toLocaleString()}</dd></div>
+      <div><dt>Rejected</dt><dd>{report.rejected.toLocaleString()}</dd></div>
     </dl>
   );
 }
