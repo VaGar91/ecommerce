@@ -31,6 +31,46 @@ shopping cart, and transactional checkout with a fake payment provider.
 The frontend is a separate React application inside this repository, built with
 TypeScript and Vite.
 
+## Quick start
+
+The recommended evaluation path requires only Git and Docker with Docker
+Compose v2. Java, Maven, Node.js, and PostgreSQL do not need to be installed on
+the host.
+
+```shell
+git clone https://github.com/VaGar91/ecommerce.git
+cd ecommerce
+docker compose up --build --detach --wait
+```
+
+The first build needs internet access to download container images and build
+dependencies. When the command completes, open `http://localhost:8080`. Verify
+the complete stack with:
+
+```shell
+docker compose ps
+curl --fail http://localhost:8080/healthz
+curl --fail http://localhost:8080/api/actuator/health
+```
+
+All three services should be healthy. Product administration is available at
+`http://localhost:8080/admin/products`, CSV import at
+`http://localhost:8080/admin/import`, and the customer catalog at
+`http://localhost:8080/catalog`. The administration route names describe their
+intended role but are not access-controlled in this challenge; that decision is
+documented below.
+
+Stop the application without deleting imported products or orders:
+
+```shell
+docker compose down
+```
+
+The named PostgreSQL volume preserves data between starts. Running
+`docker compose down --volumes` also deletes that database and should only be
+used when a clean local catalog is intentionally required. Detailed Docker,
+source-development, test, port, and troubleshooting instructions follow below.
+
 ## Architecture
 
 The backend is a modular monolith. Spring Modulith treats the direct subpackages
@@ -54,8 +94,32 @@ are:
 - `payment` → `shared`
 - `shared` → no application module
 
+```mermaid
+flowchart LR
+    UI[React UI] -->|same-origin REST| API[Spring MVC]
+    API --> Catalog[Catalog]
+    API --> Import[Product Import]
+    API --> Ordering[Ordering]
+    Import[Product Import] --> Catalog[Catalog]
+    Ordering[Ordering] --> Catalog
+    Ordering --> Payment[Payment port]
+    Catalog --> Shared[Shared technical concerns]
+    Import --> Shared
+    Ordering --> Shared
+    Payment --> Shared
+    Catalog --> PostgreSQL[(PostgreSQL)]
+    Ordering --> PostgreSQL
+```
+
 `ModularArchitectureTest` verifies these rules and rejects cycles or access to
 another module's internal implementation.
+
+This architecture was selected because the requested workflows share one
+transactional data model and are delivered and reviewed together, while their
+business responsibilities still need enforceable ownership. It provides a
+single-command deployment today and preserves seams at which search, payments,
+or imports could later be extracted if scale or independent ownership justified
+the operational cost.
 
 ## Development approach
 
@@ -87,6 +151,30 @@ which connects to PostgreSQL on the internal Compose network.
 
 ## Decisions and alternatives considered
 
+The decisions below are driven by the challenge's evaluation needs: correctness
+under concurrent stock changes, transparent data validation, a complete UI, and
+reproducible local startup. They are not intended to imply that every production
+e-commerce system should use the same topology.
+
+### Java, Spring Boot, and REST
+
+Java 21 was selected for the backend as agreed for the challenge. Spring Boot
+provides cohesive support for MVC, validation, persistence, transactions,
+health checks, container testing, and production-style configuration without
+requiring custom infrastructure code. Resource-oriented JSON endpoints map
+directly to product CRUD, search, import, and order workflows, while Spring
+`ProblemDetail` gives errors a consistent `application/problem+json` contract.
+
+Quarkus and Micronaut were viable Java alternatives with attractive startup and
+memory characteristics, but Spring Boot's ecosystem and Spring Modulith support
+fit the architecture and reviewer familiarity better. A Node.js backend would
+reduce the number of languages but would discard the chosen Java direction.
+GraphQL was not selected because the UI does not need client-defined joins or
+multiple graph-shaped projections; it would add schema, resolver, caching, and
+authorization complexity to straightforward resource operations. gRPC is a
+strong internal service protocol but is not a natural browser-facing contract
+for this application.
+
 ### Modular monolith instead of microservices
 
 A modular monolith preserves explicit catalog, import, ordering, and payment
@@ -114,6 +202,22 @@ documents, but the current model benefits more from relational constraints and
 transactional stock/order changes. SQLite was not selected because PostgreSQL
 better represents the concurrency and schema-management expectations of an
 enterprise Java service.
+
+### JPA for persistence and Flyway for schema ownership
+
+Spring Data JPA keeps repository plumbing small while the domain entity owns
+catalog invariants and pessimistic row locks protect checkout inventory. Flyway
+migrations are the authoritative, reviewable history of tables, constraints,
+extensions, and indexes; Hibernate is configured to validate that schema rather
+than create or mutate it automatically.
+
+Plain JDBC or jOOQ would provide more explicit SQL and would become attractive
+for a query-heavy catalog, but they add mapping and repository code without a
+current need. Automatic Hibernate DDL was rejected because it obscures schema
+changes and cannot provide controlled production migrations. Database triggers
+could enforce stock changes centrally, but keeping the workflow in the catalog
+domain makes the rule testable and visible while database constraints still
+provide the final integrity boundary.
 
 ### React and TypeScript in the same repository
 
@@ -216,6 +320,41 @@ TLS, and CORS configuration. Serving the React build from Spring Boot was also
 possible, but the NGINX boundary keeps static delivery independent and lets the
 backend image contain only the Java runtime and application.
 
+### Authentication deliberately outside the challenge scope
+
+The current application is a local evaluation environment and does not pretend
+that hiding a React route provides security. In a production deployment,
+catalog reads and category discovery could remain public, while product create,
+update, delete, and CSV import operations would require an `ADMIN` role enforced
+by Spring Security on the backend. Frontend route guards and hidden navigation
+would improve the user experience but would not be the authorization boundary.
+Order lookup would also require ownership checks or an administrator role.
+
+A complete identity system was not requested and would introduce user storage,
+password recovery or an external identity provider, session lifecycle, CSRF
+protection, and authorization tests unrelated to the core challenge. A
+hard-coded API key, frontend-only role, or committed administrator password was
+rejected because each creates the appearance of security without a credible
+security model. If authentication becomes a requirement, the preferred local
+architecture is Spring Security with server-side sessions, secure HTTP-only
+cookies, CSRF protection, BCrypt password hashes, and backend role checks; a
+production deployment would normally delegate identity to an OIDC provider.
+
+### Local-first verification instead of mandatory hosted CI
+
+The submission's acceptance path is intentionally the same one available to a
+reviewer: Docker Compose builds the release artifacts, starts PostgreSQL,
+applies migrations, and waits for health checks. Maven and frontend checks are
+also runnable locally and integration tests create an isolated PostgreSQL with
+Testcontainers.
+
+GitHub Actions or another CI system would be useful as a merge gate and should
+run these same checks in a team environment, but it is not a substitute for the
+explicit requirement that the application run locally as containers. Hosted CI
+and deployment credentials were therefore left out of the challenge deliverable
+rather than adding provider-specific configuration that is not required to
+evaluate it.
+
 ## Example data
 
 The example CSV file supplied with the challenge was downloaded on
@@ -236,7 +375,8 @@ corrected rows are created.
 
 ## Running with Docker
 
-Prerequisite: Docker with Docker Compose v2.
+Prerequisite: Docker with Docker Compose v2. Run all commands in this section
+from the repository root.
 
 Build the application image and start the complete stack:
 
@@ -249,6 +389,15 @@ Open the application at `http://localhost:8080`. The frontend health endpoint is
 `http://localhost:8080/api/actuator/health`. `APP_PORT` changes the application
 host port, while `POSTGRES_PORT` changes the PostgreSQL host port. The services
 still communicate on their fixed container ports.
+
+For example, on macOS or Linux, use different host ports when either default is
+already occupied:
+
+```shell
+APP_PORT=18080 POSTGRES_PORT=15433 docker compose up --build --detach --wait
+```
+
+The application and health URLs then start with `http://localhost:18080`.
 
 Only the frontend reverse proxy is published as the application entry point.
 The Spring Boot service remains private to the Compose network, and the browser
@@ -281,6 +430,22 @@ stage; its final image contains only the compiled static assets and an
 unprivileged NGINX reverse proxy. NGINX provides client-side route fallback,
 security headers, and the single `/api` gateway to Spring Boot.
 
+### Docker troubleshooting
+
+- If Docker reports that a port is already allocated, override `APP_PORT`,
+  `POSTGRES_PORT`, or both as shown above.
+- If `--wait` is not recognized, update Docker Compose. As a fallback, run
+  `docker compose up --build --detach` and use `docker compose ps` until every
+  service reports healthy.
+- If a service becomes unhealthy, inspect it with, for example,
+  `docker compose logs --tail=200 app`; replace `app` with `frontend` or
+  `postgres` for the other services.
+- Source changes require another `docker compose up --build --detach --wait` so
+  the relevant image is rebuilt. Imported data remains in the named volume.
+- If old test data should be discarded, stop the stack and explicitly run
+  `docker compose down --volumes`. This is destructive and cannot recover the
+  local catalog or orders.
+
 ## Running the backend from source
 
 Prerequisites:
@@ -288,9 +453,12 @@ Prerequisites:
 - JDK 21
 - Docker with Docker Compose v2
 
-Start PostgreSQL:
+Stop the complete Docker stack first if it is running, because its frontend
+already owns host port `8080`. Then, from the repository root, start only
+PostgreSQL:
 
 ```shell
+docker compose down
 docker compose up -d postgres
 ```
 
@@ -323,7 +491,7 @@ Prerequisites:
 - Node.js 24.15 or newer
 - The backend running on `http://localhost:8080`
 
-Install dependencies and start Vite:
+From the repository root, install the locked dependencies and start Vite:
 
 ```shell
 cd frontend
@@ -335,14 +503,9 @@ Open `http://localhost:5173`. Vite proxies `/api` requests to the backend, so
 the browser uses a same-origin API path and no development CORS configuration is
 required.
 
-Run all frontend checks with:
-
-```shell
-cd frontend
-npm run check
-```
-
 ## Running tests
+
+Run the complete backend suite from the repository root:
 
 ```shell
 ./mvnw test
@@ -350,6 +513,16 @@ npm run check
 
 The integration test suite uses Testcontainers and therefore requires Docker.
 It starts an isolated PostgreSQL instance and does not use the Compose database.
+The Maven Wrapper downloads its pinned Maven distribution on its first run.
+
+Run linting, all frontend component tests, type checking, and the production
+frontend build with:
+
+```shell
+cd frontend
+npm ci
+npm run check
+```
 
 ## Product API
 
